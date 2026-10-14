@@ -6,34 +6,37 @@
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
 python -m pip install -r requirements.txt
+python -m flask --app app db upgrade
 python app.py
 ```
 
-La API queda disponible en http://127.0.0.1:5000. La base de datos se crea
-automáticamente en `instance/items.sqlite3`.
+La aplicación queda disponible en http://127.0.0.1:5000. La base SQLite se
+almacena en `instance/nomina.sqlite3`.
 
 ## Estructura
 
-- `models/`: modelo `Item` y consultas SQLite.
-- `services/`: validación y lógica de negocio.
-- `controllers/`: conversión entre solicitudes HTTP y respuestas JSON.
-- `routes/`: rutas de Flask para `/api/items`.
-- `database.py`: conexión, cierre e inicialización de SQLite.
+- `models/`: un módulo por modelo ORM del sistema de nómina.
+- `extensions.py`: configuración de SQLAlchemy y Flask-Migrate.
+- `migrations/`: migraciones versionadas, vistas, reglas y catálogos iniciales.
 - `app.py`: creación y configuración de la aplicación.
 
-## Endpoints
+## Modelos y migraciones de nómina
 
-- `GET /api/items`: listar elementos.
-- `POST /api/items`: crear un elemento con `name` y, opcionalmente, `description`.
-- `GET /api/items/<id>`: obtener un elemento.
-- `PATCH /api/items/<id>`: actualizar `name` o `description`.
-- `DELETE /api/items/<id>`: eliminar un elemento.
+El esquema de `nomina_colombia_completa.sql` se adaptó a SQLite. Para aplicar
+la migración inicial (también en una base de datos nueva):
 
-Ejemplo de cuerpo para crear un elemento:
-
-```json
-{
-	"name": "Mi elemento",
-	"description": "Descripción opcional"
-}
+```powershell
+python -m flask --app app db upgrade
 ```
+
+Para generar una migración después de cambiar los modelos:
+
+```powershell
+python -m flask --app app db migrate -m "Descripción del cambio"
+python -m flask --app app db upgrade
+```
+
+La migración inicial crea las tablas, restricciones, índices, vistas, reglas
+de vigencia y catálogos de roles, conceptos, parámetros y recargos. Los modelos
+se pueden importar desde `models`, por ejemplo `from models import Empleado`.
+Una migración posterior elimina la tabla heredada del CRUD anterior.
