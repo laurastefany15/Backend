@@ -1,32 +1,29 @@
 import os
+from importlib import import_module
 
 from flask import Flask, jsonify
 
-from database import close_db, init_db
-from routes.item_routes import item_routes
+from extensions import db, migrate
 
 
 def create_app(test_config=None):
     app = Flask(__name__)
     app.config.from_mapping(
-        DATABASE=os.path.join(app.instance_path, "items.sqlite3"),
+        SQLALCHEMY_DATABASE_URI="sqlite:///"
+        + os.path.join(app.instance_path, "nomina.sqlite3").replace("\\", "/"),
+        SQLALCHEMY_TRACK_MODIFICATIONS=False,
     )
     if test_config:
         app.config.update(test_config)
 
-    app.teardown_appcontext(close_db)
-    init_db(app)
-    app.register_blueprint(item_routes)
+    os.makedirs(app.instance_path, exist_ok=True)
+    db.init_app(app)
+    migrate.init_app(app, db)
+    import_module("models")
 
     @app.get("/")
     def index():
-        return jsonify({
-            "message": "API Flask",
-            "endpoints": {
-                "items": "/api/items",
-                "item": "/api/items/<id>",
-            },
-        })
+        return jsonify({"message": "API de nómina Colombia"})
 
     return app
 
