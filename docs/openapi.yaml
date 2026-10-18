@@ -1,0 +1,176 @@
+openapi: 3.0.3
+info:
+  title: API de nómina Colombia
+  version: 1.0.0
+  description: API para autenticación y operaciones del sistema de nómina.
+servers:
+  - url: /
+tags:
+  - name: General
+  - name: Autenticación
+paths:
+  /:
+    get:
+      tags: [General]
+      summary: Estado de la API
+      responses:
+        "200":
+          description: API disponible.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: API de nómina Colombia
+  /auth/register:
+    post:
+      tags: [Autenticación]
+      summary: Registrar usuario
+      description: Crea una cuenta; la contraseña se almacena como hash.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Credenciales"
+            example:
+              correo: usuario@example.com
+              password: una-clave-segura
+      responses:
+        "201":
+          description: Usuario registrado.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [message, user]
+                properties:
+                  message:
+                    type: string
+                    example: Usuario registrado correctamente.
+                  user:
+                    $ref: "#/components/schemas/Usuario"
+        "400":
+          description: JSON inválido, correo no válido o contraseña fuera de rango.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "409":
+          description: El correo ya está registrado.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+  /auth/login:
+    post:
+      tags: [Autenticación]
+      summary: Iniciar sesión
+      description: Devuelve un JWT de acceso con vigencia de una hora.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Credenciales"
+            example:
+              correo: usuario@example.com
+              password: una-clave-segura
+      responses:
+        "200":
+          description: Autenticación exitosa.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RespuestaLogin"
+        "400":
+          description: Falta el correo o la contraseña, o el JSON es inválido.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "401":
+          description: Credenciales inválidas o cuenta inactiva.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+  /auth/me:
+    get:
+      tags: [Autenticación]
+      summary: Consultar usuario autenticado
+      description: Requiere un token JWT válido y no expirado.
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Usuario asociado al token.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [user]
+                properties:
+                  user:
+                    $ref: "#/components/schemas/Usuario"
+        "401":
+          description: Token ausente, inválido, expirado o usuario inactivo.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  schemas:
+    Credenciales:
+      type: object
+      required: [correo, password]
+      properties:
+        correo:
+          type: string
+          format: email
+          maxLength: 150
+        password:
+          type: string
+          format: password
+          minLength: 8
+          maxLength: 128
+    Usuario:
+      type: object
+      required: [id, correo]
+      properties:
+        id:
+          type: integer
+          example: 1
+        correo:
+          type: string
+          format: email
+          example: usuario@example.com
+    RespuestaLogin:
+      type: object
+      required: [access_token, token_type, expires_in, user]
+      properties:
+        access_token:
+          type: string
+          description: JWT firmado con HS256.
+        token_type:
+          type: string
+          enum: [Bearer]
+        expires_in:
+          type: integer
+          description: Vigencia del token en segundos.
+          example: 3600
+        user:
+          $ref: "#/components/schemas/Usuario"
+    Error:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: string
