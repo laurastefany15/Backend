@@ -8,6 +8,8 @@ servers:
 tags:
   - name: General
   - name: Autenticación
+  - name: Empleados
+  - name: Administración
 paths:
   /:
     get:
@@ -121,6 +123,434 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
+  /empleados:
+    get:
+      tags: [Empleados]
+      summary: Listar empleados de la empresa del usuario
+      description: Requiere JWT y un usuario asociado a una empresa activa. Por defecto muestra hasta 20 registros.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - name: per_page
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+        - name: estado
+          in: query
+          schema:
+            type: string
+            enum: [ACTIVO, INACTIVO]
+      responses:
+        "200":
+          description: Página de empleados.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ListaEmpleados"
+        "400":
+          description: Parámetros de paginación o filtro inválidos.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "401":
+          description: Token ausente, inválido o expirado.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: El usuario no está asociado a una empresa activa.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+    post:
+      tags: [Empleados]
+      summary: Crear empleado
+      description: La empresa se toma del usuario autenticado y no se acepta en el cuerpo.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/EmpleadoInput"
+      responses:
+        "201":
+          description: Empleado creado.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RespuestaEmpleado"
+        "400":
+          description: Datos inválidos o campos obligatorios ausentes.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "401":
+          description: Token ausente, inválido o expirado.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: El usuario no está asociado a una empresa activa.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "409":
+          description: Ya existe un empleado con el mismo documento en la empresa.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+  /empleados/{empleado_id}:
+    parameters:
+      - name: empleado_id
+        in: path
+        required: true
+        schema:
+          type: integer
+          minimum: 1
+    get:
+      tags: [Empleados]
+      summary: Obtener empleado
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Empleado encontrado.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RespuestaEmpleado"
+        "401":
+          description: Token ausente, inválido o expirado.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: El usuario no está asociado a una empresa activa.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: Empleado no encontrado en la empresa del usuario.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+    put:
+      tags: [Empleados]
+      summary: Reemplazar datos del empleado
+      description: Requiere los campos obligatorios. Los campos opcionales omitidos se limpian.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/EmpleadoInput"
+      responses:
+        "200":
+          description: Empleado actualizado.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RespuestaEmpleado"
+        "400":
+          description: Datos inválidos o campos obligatorios ausentes.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "401":
+          description: Token ausente, inválido o expirado.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: El usuario no está asociado a una empresa activa.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: Empleado no encontrado en la empresa del usuario.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "409":
+          description: Ya existe un empleado con el mismo documento en la empresa.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+    patch:
+      tags: [Empleados]
+      summary: Actualizar parcialmente un empleado
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/EmpleadoPatch"
+      responses:
+        "200":
+          description: Empleado actualizado.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RespuestaEmpleado"
+        "400":
+          description: Datos inválidos o cuerpo vacío.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "401":
+          description: Token ausente, inválido o expirado.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: El usuario no está asociado a una empresa activa.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: Empleado no encontrado en la empresa del usuario.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "409":
+          description: Ya existe un empleado con el mismo documento en la empresa.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+    delete:
+      tags: [Empleados]
+      summary: Desactivar empleado
+      description: Eliminación lógica; conserva los datos e historial asociados.
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Empleado desactivado.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RespuestaEmpleado"
+        "401":
+          description: Token ausente, inválido o expirado.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: El usuario no está asociado a una empresa activa.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: Empleado no encontrado en la empresa del usuario.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+  /admin/usuarios/{usuario_id}/empresa:
+    parameters:
+      - name: usuario_id
+        in: path
+        required: true
+        schema:
+          type: integer
+          minimum: 1
+    get:
+      tags: [Administración]
+      summary: Consultar la empresa asociada a un usuario
+      description: Requiere JWT y el rol ADMIN.
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Asociación consultada; empresa será null si no hay asociación.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UsuarioEmpresa"
+        "401":
+          description: Token ausente, inválido o expirado.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: El usuario autenticado no tiene el rol ADMIN.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: Usuario no encontrado.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+    post:
+      tags: [Administración]
+      summary: Asociar una empresa a un usuario sin asociación previa
+      description: Solo permite crear la asociación cuando el usuario aún no tiene empresa.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AsignacionEmpresa"
+      responses:
+        "201":
+          description: Asociación creada.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RespuestaUsuarioEmpresa"
+        "400":
+          description: Cuerpo inválido o empresa_id no es un entero positivo.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "401":
+          description: Token ausente, inválido o expirado.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: El usuario autenticado no tiene el rol ADMIN.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: Usuario o empresa no encontrado.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "409":
+          description: El usuario ya tiene empresa, está inactivo o la empresa está inactiva.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+    put:
+      tags: [Administración]
+      summary: Asignar o cambiar la empresa de un usuario
+      description: Requiere JWT, rol ADMIN y una empresa activa.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AsignacionEmpresa"
+      responses:
+        "200":
+          description: Asociación actualizada.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RespuestaUsuarioEmpresa"
+        "400":
+          description: Cuerpo inválido o empresa_id no es un entero positivo.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "401":
+          description: Token ausente, inválido o expirado.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: El usuario autenticado no tiene el rol ADMIN.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: Usuario o empresa no encontrado.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "409":
+          description: El usuario está inactivo o la empresa está inactiva.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+    delete:
+      tags: [Administración]
+      summary: Desvincular empresa de un usuario
+      description: Deja el campo usuarios.empresa_id en null. Requiere JWT y rol ADMIN.
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Asociación eliminada.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RespuestaUsuarioEmpresa"
+        "401":
+          description: Token ausente, inválido o expirado.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: El usuario autenticado no tiene el rol ADMIN.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: Usuario no encontrado o sin empresa asociada.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
 components:
   securitySchemes:
     bearerAuth:
@@ -174,3 +604,209 @@ components:
       properties:
         error:
           type: string
+    EmpleadoInput:
+      type: object
+      required: [tipo_documento, numero_documento, nombres, apellidos]
+      properties:
+        tipo_documento:
+          type: string
+          maxLength: 10
+          example: CC
+        numero_documento:
+          type: string
+          maxLength: 30
+          example: "123456789"
+        nombres:
+          type: string
+          maxLength: 100
+        apellidos:
+          type: string
+          maxLength: 100
+        fecha_nacimiento:
+          type: string
+          format: date
+          nullable: true
+        telefono:
+          type: string
+          maxLength: 30
+          nullable: true
+        correo:
+          type: string
+          format: email
+          maxLength: 150
+          nullable: true
+        direccion:
+          type: string
+          nullable: true
+        contacto_emergencia:
+          type: string
+          maxLength: 150
+          nullable: true
+        telefono_emergencia:
+          type: string
+          maxLength: 30
+          nullable: true
+        banco:
+          type: string
+          maxLength: 120
+          nullable: true
+        tipo_cuenta:
+          type: string
+          maxLength: 25
+          nullable: true
+        numero_cuenta:
+          type: string
+          maxLength: 60
+          nullable: true
+        eps:
+          type: string
+          maxLength: 120
+          nullable: true
+        fondo_pension:
+          type: string
+          maxLength: 120
+          nullable: true
+        fondo_cesantias:
+          type: string
+          maxLength: 120
+          nullable: true
+        arl:
+          type: string
+          maxLength: 120
+          nullable: true
+        caja_compensacion:
+          type: string
+          maxLength: 120
+          nullable: true
+        estado:
+          type: string
+          enum: [ACTIVO, INACTIVO]
+    EmpleadoPatch:
+      type: object
+      minProperties: 1
+      properties:
+        tipo_documento:
+          $ref: "#/components/schemas/EmpleadoInput/properties/tipo_documento"
+        numero_documento:
+          $ref: "#/components/schemas/EmpleadoInput/properties/numero_documento"
+        nombres:
+          $ref: "#/components/schemas/EmpleadoInput/properties/nombres"
+        apellidos:
+          $ref: "#/components/schemas/EmpleadoInput/properties/apellidos"
+        fecha_nacimiento:
+          $ref: "#/components/schemas/EmpleadoInput/properties/fecha_nacimiento"
+        telefono:
+          $ref: "#/components/schemas/EmpleadoInput/properties/telefono"
+        correo:
+          $ref: "#/components/schemas/EmpleadoInput/properties/correo"
+        direccion:
+          $ref: "#/components/schemas/EmpleadoInput/properties/direccion"
+        contacto_emergencia:
+          $ref: "#/components/schemas/EmpleadoInput/properties/contacto_emergencia"
+        telefono_emergencia:
+          $ref: "#/components/schemas/EmpleadoInput/properties/telefono_emergencia"
+        banco:
+          $ref: "#/components/schemas/EmpleadoInput/properties/banco"
+        tipo_cuenta:
+          $ref: "#/components/schemas/EmpleadoInput/properties/tipo_cuenta"
+        numero_cuenta:
+          $ref: "#/components/schemas/EmpleadoInput/properties/numero_cuenta"
+        eps:
+          $ref: "#/components/schemas/EmpleadoInput/properties/eps"
+        fondo_pension:
+          $ref: "#/components/schemas/EmpleadoInput/properties/fondo_pension"
+        fondo_cesantias:
+          $ref: "#/components/schemas/EmpleadoInput/properties/fondo_cesantias"
+        arl:
+          $ref: "#/components/schemas/EmpleadoInput/properties/arl"
+        caja_compensacion:
+          $ref: "#/components/schemas/EmpleadoInput/properties/caja_compensacion"
+        estado:
+          $ref: "#/components/schemas/EmpleadoInput/properties/estado"
+    RespuestaEmpleado:
+      type: object
+      required: [empleado]
+      properties:
+        message:
+          type: string
+        empleado:
+          $ref: "#/components/schemas/Empleado"
+    Empleado:
+      allOf:
+        - $ref: "#/components/schemas/EmpleadoInput"
+        - type: object
+          required: [id, empresa_id, creado_en]
+          properties:
+            id:
+              type: integer
+            empresa_id:
+              type: integer
+              readOnly: true
+            creado_en:
+              type: string
+              format: date-time
+              readOnly: true
+    ListaEmpleados:
+      type: object
+      required: [items, pagination]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/Empleado"
+        pagination:
+          type: object
+          required: [page, per_page, total, pages]
+          properties:
+            page:
+              type: integer
+            per_page:
+              type: integer
+            total:
+              type: integer
+            pages:
+              type: integer
+    AsignacionEmpresa:
+      type: object
+      required: [empresa_id]
+      properties:
+        empresa_id:
+          type: integer
+          minimum: 1
+          example: 3
+    UsuarioEmpresa:
+      type: object
+      required: [usuario, empresa]
+      properties:
+        usuario:
+          type: object
+          required: [id, correo]
+          properties:
+            id:
+              type: integer
+            correo:
+              type: string
+              format: email
+        empresa:
+          nullable: true
+          allOf:
+            - $ref: "#/components/schemas/EmpresaResumen"
+    RespuestaUsuarioEmpresa:
+      allOf:
+        - $ref: "#/components/schemas/UsuarioEmpresa"
+        - type: object
+          properties:
+            message:
+              type: string
+    EmpresaResumen:
+      type: object
+      required: [id, nit, razon_social, activa]
+      properties:
+        id:
+          type: integer
+        nit:
+          type: string
+        razon_social:
+          type: string
+        activa:
+          type: boolean

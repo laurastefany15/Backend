@@ -5,6 +5,8 @@ from flask import Flask, jsonify, send_from_directory
 
 from extensions import db, migrate
 from routes.auth_routes import auth_bp
+from routes.empleado_routes import empleado_bp
+from routes.usuario_empresa_routes import usuario_empresa_bp
 from flask_swagger_ui import get_swaggerui_blueprint
 
 
@@ -25,6 +27,8 @@ def create_app(test_config=None):
     migrate.init_app(app, db)
     import_module("models")
     app.register_blueprint(auth_bp)
+    app.register_blueprint(empleado_bp)
+    app.register_blueprint(usuario_empresa_bp)
     app.register_blueprint(
         get_swaggerui_blueprint(
             "/apidocs",

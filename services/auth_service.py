@@ -8,7 +8,7 @@ from sqlalchemy.exc import IntegrityError
 from werkzeug.security import check_password_hash, generate_password_hash
 
 from extensions import db
-from models import Usuario
+from models import Rol, Usuario, UsuarioRol
 
 
 class AuthValidationError(ValueError):
@@ -130,5 +130,24 @@ def jwt_required(view_func: Callable):
             return jsonify({"error": "El usuario no está disponible."}), 401
 
         return view_func(*args, current_user=user, **kwargs)
+
+    return wrapped
+
+
+def admin_required(view_func: Callable):
+    @wraps(view_func)
+    def wrapped(*args, current_user, **kwargs):
+        is_admin = (
+            UsuarioRol.query.join(Rol, Rol.id == UsuarioRol.rol_id)
+            .filter(
+                UsuarioRol.usuario_id == current_user.id,
+                Rol.codigo == "ADMIN",
+            )
+            .first()
+            is not None
+        )
+        if not is_admin:
+            return jsonify({"error": "Se requiere el rol ADMIN."}), 403
+        return view_func(*args, **kwargs)
 
     return wrapped
