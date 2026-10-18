@@ -13,10 +13,10 @@ python app.py
 La aplicación queda disponible en http://127.0.0.1:5000. La base SQLite se
 almacena en `instance/nomina.sqlite3`.
 
-Define `JWT_SECRET_KEY` en el entorno antes de usar autenticación. Usa un
-secreto aleatorio de al menos 32 bytes y distinto para cada entorno. En
-PowerShell, por ejemplo, define `$env:JWT_SECRET_KEY` antes de iniciar Flask.
-Los tokens de acceso expiran en una hora.
+Copia `.env.example` a `.env` y define `JWT_SECRET_KEY` con un secreto
+aleatorio de al menos 32 bytes, distinto para cada entorno. Ese archivo está
+en `.gitignore` y la aplicación lo carga al arrancar. Los tokens de acceso
+expiran en una hora.
 
 ## Swagger / OpenAPI
 
@@ -48,6 +48,20 @@ rutas.
 El cuerpo acepta los campos definidos por el modelo `Empleado`, excepto
 `id`, `empresa_id` y `creado_en`; la empresa se determina desde el usuario
 autenticado. Swagger contiene los esquemas y respuestas detallados.
+
+## Empresas
+
+El CRUD de empresas está en rutas protegidas que requieren JWT y el rol `ADMIN`:
+
+- `GET /admin/empresas?page=1&per_page=20&activa=true`: lista empresas paginadas.
+- `POST /admin/empresas`: crea una empresa; requiere `nit` y `razon_social`.
+- `GET /admin/empresas/<id>`: consulta una empresa.
+- `PUT /admin/empresas/<id>`: reemplaza los datos; los campos opcionales omitidos se limpian.
+- `PATCH /admin/empresas/<id>`: actualiza solo los campos enviados.
+- `DELETE /admin/empresas/<id>`: desactiva la empresa (eliminación lógica).
+
+El cuerpo acepta `nit`, `razon_social`, `direccion`, `telefono`, `correo` y `activa`.
+El NIT es único. Una empresa inactiva no se puede asignar a un usuario.
 
 ## Asociación de usuarios con empresas
 

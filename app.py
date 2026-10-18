@@ -1,11 +1,16 @@
 import os
 from importlib import import_module
+from pathlib import Path
 
+from dotenv import load_dotenv
 from flask import Flask, jsonify, send_from_directory
+
+load_dotenv(Path(__file__).resolve().parent / ".env")
 
 from extensions import db, migrate
 from routes.auth_routes import auth_bp
 from routes.empleado_routes import empleado_bp
+from routes.empresa_routes import empresa_bp
 from routes.usuario_empresa_routes import usuario_empresa_bp
 from flask_swagger_ui import get_swaggerui_blueprint
 
@@ -28,6 +33,7 @@ def create_app(test_config=None):
     import_module("models")
     app.register_blueprint(auth_bp)
     app.register_blueprint(empleado_bp)
+    app.register_blueprint(empresa_bp)
     app.register_blueprint(usuario_empresa_bp)
     app.register_blueprint(
         get_swaggerui_blueprint(
