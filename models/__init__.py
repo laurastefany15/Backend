@@ -1,6 +1,4 @@
 from .empresa import Empresa
-from .sede import Sede
-from .centro_costo import CentroCosto
 from .rol import Rol
 from .usuario import Usuario
 from .usuario_rol import UsuarioRol
@@ -29,8 +27,6 @@ from .festivo import Festivo
 
 __all__ = [
     "Empresa",
-    "Sede",
-    "CentroCosto",
     "Rol",
     "Usuario",
     "UsuarioRol",
