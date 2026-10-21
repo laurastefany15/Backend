@@ -32,8 +32,6 @@ class Contrato(db.Model):
 
     id = db.Column(Integer, primary_key=True)
     empleado_id = db.Column(ForeignKey("empleados.id"), nullable=False)
-    sede_id = db.Column(ForeignKey("sedes.id"))
-    centro_costo_id = db.Column(ForeignKey("centros_costo.id"))
     tipo_contrato = db.Column(String(30), nullable=False)
     cargo = db.Column(String(140), nullable=False)
     fecha_inicio = db.Column(Date, nullable=False)

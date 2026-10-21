@@ -9,6 +9,8 @@ tags:
   - name: General
   - name: Autenticación
   - name: Empleados
+  - name: Contratos
+  - name: Asistencias
   - name: Administración
 paths:
   /:
@@ -379,6 +381,568 @@ paths:
                 $ref: "#/components/schemas/Error"
         "404":
           description: Empleado no encontrado en la empresa del usuario.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+  /contratos:
+    get:
+      tags: [Contratos]
+      summary: Listar contratos de la empresa del usuario
+      description: Requiere JWT. Solo incluye contratos de empleados de la empresa asociada.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - name: per_page
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+        - name: empleado_id
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+        - name: estado
+          in: query
+          schema:
+            type: string
+            enum: [ACTIVO, TERMINADO]
+      responses:
+        "200":
+          description: Listado paginado de contratos.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ListaContratos"
+        "400":
+          description: Parámetros inválidos.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "401":
+          description: Token ausente, inválido o expirado.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: El usuario no está asociado a una empresa activa.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: El empleado indicado no pertenece a la empresa.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+    post:
+      tags: [Contratos]
+      summary: Crear un contrato
+      description: Requiere JWT. El empleado debe pertenecer a la empresa del usuario.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ContratoInput"
+      responses:
+        "201":
+          description: Contrato creado.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RespuestaContrato"
+        "400":
+          description: Cuerpo inválido.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "401":
+          description: Token ausente, inválido o expirado.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: El usuario no está asociado a una empresa activa.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: Empleado no encontrado en la empresa.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "409":
+          description: El empleado no está activo.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+  /contratos/{contrato_id}:
+    parameters:
+      - name: contrato_id
+        in: path
+        required: true
+        schema:
+          type: integer
+          minimum: 1
+    get:
+      tags: [Contratos]
+      summary: Consultar un contrato
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Contrato consultado.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [contrato]
+                properties:
+                  contrato:
+                    $ref: "#/components/schemas/Contrato"
+        "401":
+          description: Token ausente, inválido o expirado.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: El usuario no está asociado a una empresa activa.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: Contrato no encontrado en la empresa del usuario.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+    put:
+      tags: [Contratos]
+      summary: Reemplazar un contrato
+      description: Los campos opcionales omitidos se limpian o vuelven a su valor por defecto.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ContratoInput"
+      responses:
+        "200":
+          description: Contrato actualizado.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RespuestaContrato"
+        "400":
+          description: Cuerpo inválido.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "401":
+          description: Token ausente, inválido o expirado.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: El usuario no está asociado a una empresa activa.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: Contrato o empleado no encontrado.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "409":
+          description: El empleado no está activo.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+    patch:
+      tags: [Contratos]
+      summary: Actualizar campos de un contrato
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ContratoInput"
+      responses:
+        "200":
+          description: Contrato actualizado.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RespuestaContrato"
+        "400":
+          description: Cuerpo inválido.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "401":
+          description: Token ausente, inválido o expirado.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: El usuario no está asociado a una empresa activa.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: Contrato o empleado no encontrado.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "409":
+          description: El empleado no está activo.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+    delete:
+      tags: [Contratos]
+      summary: Terminar un contrato
+      description: Eliminación lógica. El estado queda en TERMINADO.
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Contrato terminado.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RespuestaContrato"
+        "401":
+          description: Token ausente, inválido o expirado.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: El usuario no está asociado a una empresa activa.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: Contrato no encontrado en la empresa del usuario.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+  /asistencias:
+    get:
+      tags: [Asistencias]
+      summary: Listar asistencias de la empresa del usuario
+      description: Requiere JWT. Solo incluye registros de contratos de la empresa asociada.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - name: per_page
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+        - name: contrato_id
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+        - name: estado
+          in: query
+          schema:
+            type: string
+            enum: [REGISTRADA, VALIDADA, ANULADA]
+      responses:
+        "200":
+          description: Listado paginado de asistencias.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ListaAsistencias"
+        "400":
+          description: Parámetros inválidos.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "401":
+          description: Token ausente, inválido o expirado.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: El usuario no está asociado a una empresa activa.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: El contrato indicado no pertenece a la empresa.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+    post:
+      tags: [Asistencias]
+      summary: Registrar una asistencia
+      description: Requiere JWT. El contrato debe pertenecer a la empresa del usuario y estar activo.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AsistenciaInput"
+      responses:
+        "201":
+          description: Asistencia creada.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RespuestaAsistencia"
+        "400":
+          description: Cuerpo inválido.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "401":
+          description: Token ausente, inválido o expirado.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: El usuario no está asociado a una empresa activa.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: Contrato no encontrado en la empresa.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "409":
+          description: El contrato está terminado.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+  /asistencias/{asistencia_id}:
+    parameters:
+      - name: asistencia_id
+        in: path
+        required: true
+        schema:
+          type: integer
+          minimum: 1
+    get:
+      tags: [Asistencias]
+      summary: Consultar una asistencia
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Asistencia consultada.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [asistencia]
+                properties:
+                  asistencia:
+                    $ref: "#/components/schemas/Asistencia"
+        "401":
+          description: Token ausente, inválido o expirado.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: El usuario no está asociado a una empresa activa.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: Asistencia no encontrada en la empresa del usuario.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+    put:
+      tags: [Asistencias]
+      summary: Reemplazar una asistencia
+      description: Los campos opcionales omitidos se limpian o vuelven a su valor por defecto.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AsistenciaInput"
+      responses:
+        "200":
+          description: Asistencia actualizada.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RespuestaAsistencia"
+        "400":
+          description: Cuerpo inválido.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "401":
+          description: Token ausente, inválido o expirado.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: El usuario no está asociado a una empresa activa.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: Asistencia o contrato no encontrado.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "409":
+          description: El contrato está terminado.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+    patch:
+      tags: [Asistencias]
+      summary: Actualizar campos de una asistencia
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AsistenciaInput"
+      responses:
+        "200":
+          description: Asistencia actualizada.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RespuestaAsistencia"
+        "400":
+          description: Cuerpo inválido.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "401":
+          description: Token ausente, inválido o expirado.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: El usuario no está asociado a una empresa activa.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: Asistencia o contrato no encontrado.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "409":
+          description: El contrato está terminado.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+    delete:
+      tags: [Asistencias]
+      summary: Anular una asistencia
+      description: Eliminación lógica. El estado queda en ANULADA.
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Asistencia anulada.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RespuestaAsistencia"
+        "401":
+          description: Token ausente, inválido o expirado.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: El usuario no está asociado a una empresa activa.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: Asistencia no encontrada en la empresa del usuario.
           content:
             application/json:
               schema:
@@ -1064,6 +1628,159 @@ components:
           properties:
             message:
               type: string
+    AsistenciaInput:
+      type: object
+      required: [contrato_id, entrada]
+      properties:
+        contrato_id:
+          type: integer
+          minimum: 1
+          example: 1
+        entrada:
+          type: string
+          format: date-time
+          example: "2026-03-02T08:00:00-05:00"
+        salida:
+          type: string
+          format: date-time
+          nullable: true
+          example: "2026-03-02T17:30:00-05:00"
+        minutos_descanso:
+          type: integer
+          minimum: 0
+          default: 0
+          example: 60
+        estado:
+          type: string
+          enum: [REGISTRADA, VALIDADA, ANULADA]
+          default: REGISTRADA
+        observacion:
+          type: string
+          nullable: true
+    Asistencia:
+      allOf:
+        - $ref: "#/components/schemas/AsistenciaInput"
+        - type: object
+          required: [id]
+          properties:
+            id:
+              type: integer
+              readOnly: true
+    ListaAsistencias:
+      type: object
+      required: [items, pagination]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/Asistencia"
+        pagination:
+          type: object
+          required: [page, per_page, total, pages]
+          properties:
+            page:
+              type: integer
+            per_page:
+              type: integer
+            total:
+              type: integer
+            pages:
+              type: integer
+    RespuestaAsistencia:
+      type: object
+      required: [message, asistencia]
+      properties:
+        message:
+          type: string
+        asistencia:
+          $ref: "#/components/schemas/Asistencia"
+    ContratoInput:
+      type: object
+      required:
+        - empleado_id
+        - tipo_contrato
+        - cargo
+        - fecha_inicio
+        - salario_mensual
+        - horas_semanales
+      properties:
+        empleado_id:
+          type: integer
+          minimum: 1
+          example: 1
+        tipo_contrato:
+          type: string
+          enum: [INDEFINIDO, FIJO, OBRA_LABOR, APRENDIZAJE, OTRO]
+          example: INDEFINIDO
+        cargo:
+          type: string
+          maxLength: 140
+          example: Analista de nómina
+        fecha_inicio:
+          type: string
+          format: date
+          example: "2026-01-01"
+        fecha_fin:
+          type: string
+          format: date
+          nullable: true
+        salario_mensual:
+          type: number
+          minimum: 0
+          example: 2500000
+        horas_semanales:
+          type: number
+          exclusiveMinimum: 0
+          example: 48
+        dia_descanso:
+          type: integer
+          minimum: 1
+          maximum: 7
+          default: 7
+        tiene_auxilio_transporte:
+          type: boolean
+          default: true
+        estado:
+          type: string
+          enum: [ACTIVO, TERMINADO]
+          default: ACTIVO
+    Contrato:
+      allOf:
+        - $ref: "#/components/schemas/ContratoInput"
+        - type: object
+          required: [id]
+          properties:
+            id:
+              type: integer
+              readOnly: true
+    ListaContratos:
+      type: object
+      required: [items, pagination]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/Contrato"
+        pagination:
+          type: object
+          required: [page, per_page, total, pages]
+          properties:
+            page:
+              type: integer
+            per_page:
+              type: integer
+            total:
+              type: integer
+            pages:
+              type: integer
+    RespuestaContrato:
+      type: object
+      required: [message, contrato]
+      properties:
+        message:
+          type: string
+        contrato:
+          $ref: "#/components/schemas/Contrato"
     EmpresaInput:
       type: object
       required: [nit, razon_social]

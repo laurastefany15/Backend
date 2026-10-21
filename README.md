@@ -49,6 +49,39 @@ El cuerpo acepta los campos definidos por el modelo `Empleado`, excepto
 `id`, `empresa_id` y `creado_en`; la empresa se determina desde el usuario
 autenticado. Swagger contiene los esquemas y respuestas detallados.
 
+## Contratos
+
+Las rutas `/contratos` requieren JWT y solo muestran contratos de empleados de
+la empresa del usuario.
+
+- `GET /contratos?page=1&per_page=20&empleado_id=1&estado=ACTIVO`: lista contratos.
+- `POST /contratos`: crea un contrato. Requiere `empleado_id`, `tipo_contrato`,
+  `cargo`, `fecha_inicio`, `salario_mensual` y `horas_semanales`.
+- `GET /contratos/<id>`: consulta un contrato.
+- `PUT /contratos/<id>`: reemplaza el contrato; los campos opcionales omitidos se limpian.
+- `PATCH /contratos/<id>`: actualiza solo los campos enviados.
+- `DELETE /contratos/<id>`: marca el contrato como `TERMINADO`.
+
+`tipo_contrato` admite `INDEFINIDO`, `FIJO`, `OBRA_LABOR`, `APRENDIZAJE` y `OTRO`.
+`estado` admite `ACTIVO` y `TERMINADO`. `dia_descanso` va de 1 a 7.
+
+## Asistencias
+
+Las rutas `/asistencias` requieren JWT y solo muestran registros de contratos
+de la empresa del usuario. La asistencia se asocia al contrato, que ya pertenece
+a un empleado.
+
+- `GET /asistencias?page=1&per_page=20&contrato_id=1&estado=REGISTRADA`: lista asistencias.
+- `POST /asistencias`: crea un registro. Requiere `contrato_id` y `entrada`.
+- `GET /asistencias/<id>`: consulta un registro.
+- `PUT /asistencias/<id>`: reemplaza el registro; los campos opcionales omitidos se limpian.
+- `PATCH /asistencias/<id>`: actualiza solo los campos enviados.
+- `DELETE /asistencias/<id>`: anula el registro (`estado` queda en `ANULADA`).
+
+`entrada` y `salida` usan fecha y hora ISO 8601. `salida` debe ser posterior a
+`entrada`. `estado` admite `REGISTRADA`, `VALIDADA` y `ANULADA`. El contrato
+debe pertenecer a la empresa del usuario y estar activo para crear un registro.
+
 ## Empresas
 
 El CRUD de empresas está en rutas protegidas que requieren JWT y el rol `ADMIN`:
