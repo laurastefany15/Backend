@@ -13,6 +13,8 @@ tags:
   - name: Asistencias
   - name: Vacaciones
   - name: Incapacidades
+  - name: Horas extras
+  - name: Nómina
   - name: Administración
 paths:
   /:
@@ -2117,6 +2119,436 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
+  /horas-extras:
+    get:
+      tags: [Horas extras]
+      summary: Listar horas extras
+      security:
+        - bearerAuth: []
+      parameters:
+        - {name: page, in: query, schema: {type: integer, minimum: 1, default: 1}}
+        - {name: per_page, in: query, schema: {type: integer, minimum: 1, maximum: 100, default: 20}}
+        - {name: contrato_id, in: query, schema: {type: integer, minimum: 1}}
+        - name: estado
+          in: query
+          schema:
+            type: string
+            enum: [PENDIENTE, APROBADA, RECHAZADA, LIQUIDADA]
+        - {name: desde, in: query, schema: {type: string, format: date}}
+        - {name: hasta, in: query, schema: {type: string, format: date}}
+      responses:
+        "200":
+          description: Listado paginado.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items, pagination]
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/HoraExtra"
+                  pagination:
+                    $ref: "#/components/schemas/Paginacion"
+        "400": {$ref: "#/components/responses/Invalido"}
+        "401": {$ref: "#/components/responses/NoAutenticado"}
+        "403": {$ref: "#/components/responses/SinEmpresa"}
+        "404": {$ref: "#/components/responses/NoEncontrado"}
+    post:
+      tags: [Horas extras]
+      summary: Registrar horas extras o recargos
+      description: Solo las horas en estado APROBADA entran en la nómina.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/HoraExtraInput"
+      responses:
+        "201":
+          description: Hora extra registrada.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RespuestaHoraExtra"
+        "400": {$ref: "#/components/responses/Invalido"}
+        "401": {$ref: "#/components/responses/NoAutenticado"}
+        "403": {$ref: "#/components/responses/SinEmpresa"}
+        "404": {$ref: "#/components/responses/NoEncontrado"}
+        "409": {$ref: "#/components/responses/Conflicto"}
+  /horas-extras/{hora_extra_id}:
+    parameters:
+      - {name: hora_extra_id, in: path, required: true, schema: {type: integer, minimum: 1}}
+    get:
+      tags: [Horas extras]
+      summary: Consultar una hora extra
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Hora extra.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [hora_extra]
+                properties:
+                  hora_extra:
+                    $ref: "#/components/schemas/HoraExtra"
+        "401": {$ref: "#/components/responses/NoAutenticado"}
+        "403": {$ref: "#/components/responses/SinEmpresa"}
+        "404": {$ref: "#/components/responses/NoEncontrado"}
+    put:
+      tags: [Horas extras]
+      summary: Reemplazar una hora extra
+      description: No se puede modificar una hora extra LIQUIDADA.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/HoraExtraInput"
+      responses:
+        "200":
+          description: Hora extra actualizada.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RespuestaHoraExtra"
+        "400": {$ref: "#/components/responses/Invalido"}
+        "401": {$ref: "#/components/responses/NoAutenticado"}
+        "403": {$ref: "#/components/responses/SinEmpresa"}
+        "404": {$ref: "#/components/responses/NoEncontrado"}
+        "409": {$ref: "#/components/responses/Conflicto"}
+    patch:
+      tags: [Horas extras]
+      summary: Actualizar campos de una hora extra
+      description: No se puede modificar una hora extra LIQUIDADA.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/HoraExtraInput"
+      responses:
+        "200":
+          description: Hora extra actualizada.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RespuestaHoraExtra"
+        "400": {$ref: "#/components/responses/Invalido"}
+        "401": {$ref: "#/components/responses/NoAutenticado"}
+        "403": {$ref: "#/components/responses/SinEmpresa"}
+        "404": {$ref: "#/components/responses/NoEncontrado"}
+        "409": {$ref: "#/components/responses/Conflicto"}
+    delete:
+      tags: [Horas extras]
+      summary: Rechazar una hora extra
+      description: Eliminación lógica. El estado queda en RECHAZADA.
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Hora extra rechazada.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RespuestaHoraExtra"
+        "401": {$ref: "#/components/responses/NoAutenticado"}
+        "403": {$ref: "#/components/responses/SinEmpresa"}
+        "404": {$ref: "#/components/responses/NoEncontrado"}
+        "409": {$ref: "#/components/responses/Conflicto"}
+  /nominas/generar:
+    post:
+      tags: [Nómina]
+      summary: Liquidar una quincena
+      description: >
+        Liquida la quincena indicada para todos los contratos vigentes de la empresa,
+        o solo para un empleado o contrato. Recalcula las nóminas en BORRADOR o ANULADA
+        y omite las APROBADA o PAGADA. Los contratos sin parámetros o tarifas vigentes
+        se informan en errores sin detener a los demás.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/GenerarNomina"
+            examples:
+              empresa:
+                summary: Todos los empleados
+                value: {anio: 2026, mes: 8, quincena: 1}
+              empleado:
+                summary: Un empleado
+                value: {fecha: "2026-08-10", empleado_id: 1}
+      responses:
+        "201":
+          description: Se liquidó al menos una nómina.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ResultadoGeneracion"
+        "200":
+          description: No se liquidó ninguna nómina; revise omitidas y errores.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ResultadoGeneracion"
+        "400": {$ref: "#/components/responses/Invalido"}
+        "401": {$ref: "#/components/responses/NoAutenticado"}
+        "403": {$ref: "#/components/responses/SinEmpresa"}
+        "404": {$ref: "#/components/responses/NoEncontrado"}
+        "409": {$ref: "#/components/responses/Conflicto"}
+  /nominas:
+    get:
+      tags: [Nómina]
+      summary: Listar nóminas
+      security:
+        - bearerAuth: []
+      parameters:
+        - {name: page, in: query, schema: {type: integer, minimum: 1, default: 1}}
+        - {name: per_page, in: query, schema: {type: integer, minimum: 1, maximum: 100, default: 20}}
+        - {name: periodo_id, in: query, schema: {type: integer, minimum: 1}}
+        - {name: empleado_id, in: query, schema: {type: integer, minimum: 1}}
+        - {name: contrato_id, in: query, schema: {type: integer, minimum: 1}}
+        - name: estado
+          in: query
+          schema:
+            type: string
+            enum: [BORRADOR, APROBADA, PAGADA, ANULADA]
+      responses:
+        "200":
+          description: Listado paginado, sin detalle.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items, pagination]
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Nomina"
+                  pagination:
+                    $ref: "#/components/schemas/Paginacion"
+        "400": {$ref: "#/components/responses/Invalido"}
+        "401": {$ref: "#/components/responses/NoAutenticado"}
+        "403": {$ref: "#/components/responses/SinEmpresa"}
+  /nominas/{nomina_id}:
+    parameters:
+      - {name: nomina_id, in: path, required: true, schema: {type: integer, minimum: 1}}
+    get:
+      tags: [Nómina]
+      summary: Consultar una nómina con su detalle
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Nómina con detalle y pagos.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [nomina]
+                properties:
+                  nomina:
+                    $ref: "#/components/schemas/NominaDetalle"
+        "401": {$ref: "#/components/responses/NoAutenticado"}
+        "403": {$ref: "#/components/responses/SinEmpresa"}
+        "404": {$ref: "#/components/responses/NoEncontrado"}
+  /nominas/{nomina_id}/aprobar:
+    parameters:
+      - {name: nomina_id, in: path, required: true, schema: {type: integer, minimum: 1}}
+    post:
+      tags: [Nómina]
+      summary: Aprobar una nómina
+      description: Las horas extras pasan a LIQUIDADA y baja el saldo de las deducciones.
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Nómina aprobada.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RespuestaNomina"
+        "401": {$ref: "#/components/responses/NoAutenticado"}
+        "403": {$ref: "#/components/responses/SinEmpresa"}
+        "404": {$ref: "#/components/responses/NoEncontrado"}
+        "409": {$ref: "#/components/responses/Conflicto"}
+  /nominas/{nomina_id}/anular:
+    parameters:
+      - {name: nomina_id, in: path, required: true, schema: {type: integer, minimum: 1}}
+    post:
+      tags: [Nómina]
+      summary: Anular una nómina
+      description: Si estaba aprobada, revierte horas extras y saldos de deducciones. No anula nóminas pagadas.
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Nómina anulada.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RespuestaNomina"
+        "401": {$ref: "#/components/responses/NoAutenticado"}
+        "403": {$ref: "#/components/responses/SinEmpresa"}
+        "404": {$ref: "#/components/responses/NoEncontrado"}
+        "409": {$ref: "#/components/responses/Conflicto"}
+  /nominas/{nomina_id}/pagar:
+    parameters:
+      - {name: nomina_id, in: path, required: true, schema: {type: integer, minimum: 1}}
+    post:
+      tags: [Nómina]
+      summary: Registrar el pago de una nómina aprobada
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PagoNominaInput"
+      responses:
+        "200":
+          description: Pago registrado; la nómina queda PAGADA.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RespuestaNomina"
+        "400": {$ref: "#/components/responses/Invalido"}
+        "401": {$ref: "#/components/responses/NoAutenticado"}
+        "403": {$ref: "#/components/responses/SinEmpresa"}
+        "404": {$ref: "#/components/responses/NoEncontrado"}
+        "409": {$ref: "#/components/responses/Conflicto"}
+  /nominas/periodos:
+    get:
+      tags: [Nómina]
+      summary: Listar periodos de nómina con totales
+      security:
+        - bearerAuth: []
+      parameters:
+        - {name: page, in: query, schema: {type: integer, minimum: 1, default: 1}}
+        - {name: per_page, in: query, schema: {type: integer, minimum: 1, maximum: 100, default: 20}}
+        - name: estado
+          in: query
+          schema:
+            type: string
+            enum: [ABIERTO, EN_REVISION, CERRADO]
+      responses:
+        "200":
+          description: Periodos paginados.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items, pagination]
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/PeriodoNominaResumen"
+                  pagination:
+                    $ref: "#/components/schemas/Paginacion"
+        "400": {$ref: "#/components/responses/Invalido"}
+        "401": {$ref: "#/components/responses/NoAutenticado"}
+        "403": {$ref: "#/components/responses/SinEmpresa"}
+  /nominas/periodos/{periodo_id}:
+    parameters:
+      - {name: periodo_id, in: path, required: true, schema: {type: integer, minimum: 1}}
+    get:
+      tags: [Nómina]
+      summary: Consultar un periodo con totales
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Periodo.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [periodo]
+                properties:
+                  periodo:
+                    $ref: "#/components/schemas/PeriodoNominaResumen"
+        "401": {$ref: "#/components/responses/NoAutenticado"}
+        "403": {$ref: "#/components/responses/SinEmpresa"}
+        "404": {$ref: "#/components/responses/NoEncontrado"}
+  /nominas/periodos/{periodo_id}/aprobar:
+    parameters:
+      - {name: periodo_id, in: path, required: true, schema: {type: integer, minimum: 1}}
+    post:
+      tags: [Nómina]
+      summary: Aprobar todas las nóminas en borrador del periodo
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Resultado de la aprobación.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [periodo, aprobadas, errores]
+                properties:
+                  message:
+                    type: string
+                  periodo:
+                    $ref: "#/components/schemas/PeriodoNominaResumen"
+                  aprobadas:
+                    type: array
+                    items:
+                      type: integer
+                  errores:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        nomina_id:
+                          type: integer
+                        error:
+                          type: string
+        "401": {$ref: "#/components/responses/NoAutenticado"}
+        "403": {$ref: "#/components/responses/SinEmpresa"}
+        "404": {$ref: "#/components/responses/NoEncontrado"}
+        "409": {$ref: "#/components/responses/Conflicto"}
+  /nominas/periodos/{periodo_id}/cerrar:
+    parameters:
+      - {name: periodo_id, in: path, required: true, schema: {type: integer, minimum: 1}}
+    post:
+      tags: [Nómina]
+      summary: Cerrar un periodo
+      description: Requiere que no queden nóminas en BORRADOR. Un periodo cerrado no se vuelve a liquidar.
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Periodo cerrado.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [periodo]
+                properties:
+                  message:
+                    type: string
+                  periodo:
+                    $ref: "#/components/schemas/PeriodoNominaResumen"
+        "401": {$ref: "#/components/responses/NoAutenticado"}
+        "403": {$ref: "#/components/responses/SinEmpresa"}
+        "404": {$ref: "#/components/responses/NoEncontrado"}
+        "409": {$ref: "#/components/responses/Conflicto"}
   /admin/empresas:
     get:
       tags: [Administración]
@@ -2557,6 +2989,37 @@ components:
       type: http
       scheme: bearer
       bearerFormat: JWT
+  responses:
+    Invalido:
+      description: Cuerpo o parámetros inválidos.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+    NoAutenticado:
+      description: Token ausente, inválido o expirado.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+    SinEmpresa:
+      description: El usuario no está asociado a una empresa activa.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+    NoEncontrado:
+      description: Recurso no encontrado en la empresa del usuario.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+    Conflicto:
+      description: La operación no es posible en el estado actual.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
   schemas:
     Credenciales:
       type: object
@@ -3316,3 +3779,313 @@ components:
           type: integer
         pages:
           type: integer
+    HoraExtraInput:
+      type: object
+      required: [contrato_id, tipo_codigo, fecha, cantidad_horas]
+      properties:
+        contrato_id:
+          type: integer
+          minimum: 1
+        tipo_codigo:
+          type: string
+          enum: [HED, HEN, RN, RDD, RDN, HEDD, HEDN]
+          example: HED
+        fecha:
+          type: string
+          format: date
+          example: "2026-08-05"
+        cantidad_horas:
+          type: number
+          exclusiveMinimum: 0
+          maximum: 24
+          example: 2
+        asistencia_id:
+          type: integer
+          minimum: 1
+          nullable: true
+        estado:
+          type: string
+          enum: [PENDIENTE, APROBADA, RECHAZADA]
+          default: PENDIENTE
+        observaciones:
+          type: string
+          nullable: true
+    HoraExtra:
+      allOf:
+        - $ref: "#/components/schemas/HoraExtraInput"
+        - type: object
+          required: [id]
+          properties:
+            id:
+              type: integer
+            estado:
+              type: string
+              enum: [PENDIENTE, APROBADA, RECHAZADA, LIQUIDADA]
+            aprobado_por:
+              type: integer
+              nullable: true
+            valor_hora_base:
+              type: number
+              nullable: true
+              description: Calculado al liquidar la nómina.
+            porcentaje_aplicado:
+              type: number
+              nullable: true
+            modo_pago_aplicado:
+              type: string
+              enum: [ADICIONAL, COMPLETO]
+              nullable: true
+            valor_calculado:
+              type: number
+              nullable: true
+    RespuestaHoraExtra:
+      type: object
+      required: [message, hora_extra]
+      properties:
+        message:
+          type: string
+        hora_extra:
+          $ref: "#/components/schemas/HoraExtra"
+    GenerarNomina:
+      type: object
+      description: Indique fecha o anio, mes y quincena.
+      properties:
+        fecha:
+          type: string
+          format: date
+          description: Cualquier día de la quincena.
+        anio:
+          type: integer
+          minimum: 2000
+          maximum: 2100
+        mes:
+          type: integer
+          minimum: 1
+          maximum: 12
+        quincena:
+          type: integer
+          enum: [1, 2]
+          description: 1 = días 1 a 15; 2 = día 16 a fin de mes.
+        fecha_pago:
+          type: string
+          format: date
+          description: Por defecto, el último día de la quincena.
+        empleado_id:
+          type: integer
+          minimum: 1
+          description: Liquida solo los contratos de este empleado.
+        contrato_id:
+          type: integer
+          minimum: 1
+          description: Liquida solo este contrato.
+    PeriodoNomina:
+      type: object
+      required: [id, tipo, fecha_inicio, fecha_fin, fecha_pago, estado]
+      properties:
+        id:
+          type: integer
+        tipo:
+          type: string
+          example: QUINCENAL
+        fecha_inicio:
+          type: string
+          format: date
+        fecha_fin:
+          type: string
+          format: date
+        fecha_pago:
+          type: string
+          format: date
+        estado:
+          type: string
+          enum: [ABIERTO, EN_REVISION, CERRADO]
+    PeriodoNominaResumen:
+      allOf:
+        - $ref: "#/components/schemas/PeriodoNomina"
+        - type: object
+          properties:
+            resumen:
+              type: object
+              properties:
+                nominas:
+                  type: integer
+                por_estado:
+                  type: object
+                  additionalProperties:
+                    type: integer
+                total_devengado:
+                  type: number
+                total_deducciones:
+                  type: number
+                neto_pagar:
+                  type: number
+                  description: Suma de las nóminas no anuladas.
+    Nomina:
+      type: object
+      required: [id, contrato_id, empleado, periodo, total_devengado, total_deducciones, neto_pagar, estado]
+      properties:
+        id:
+          type: integer
+        contrato_id:
+          type: integer
+        empleado:
+          type: object
+          properties:
+            id:
+              type: integer
+            tipo_documento:
+              type: string
+            numero_documento:
+              type: string
+            nombres:
+              type: string
+            apellidos:
+              type: string
+        periodo:
+          $ref: "#/components/schemas/PeriodoNomina"
+        salario_referencia:
+          type: number
+        total_devengado:
+          type: number
+        total_deducciones:
+          type: number
+        neto_pagar:
+          type: number
+        estado:
+          type: string
+          enum: [BORRADOR, APROBADA, PAGADA, ANULADA]
+        fecha_liquidacion:
+          type: string
+          format: date-time
+        aprobada_por:
+          type: integer
+          nullable: true
+        observaciones:
+          type: string
+          nullable: true
+          description: Avisos de la liquidación, por ejemplo días no remunerados o cuotas recortadas.
+    DetalleNomina:
+      type: object
+      properties:
+        id:
+          type: integer
+        concepto:
+          type: string
+          example: SALARIO
+        nombre:
+          type: string
+        tipo:
+          type: string
+          enum: [DEVENGADO, DEDUCCION]
+        cantidad:
+          type: number
+          nullable: true
+          description: Días u horas liquidados.
+        valor_unitario:
+          type: number
+          nullable: true
+          description: Valor por día u hora, o el IBC en los aportes.
+        porcentaje_aplicado:
+          type: number
+          nullable: true
+        valor:
+          type: number
+        origen_tipo:
+          type: string
+          nullable: true
+          enum: [HORA_EXTRA, INCAPACIDAD, VACACION, LICENCIA, DEDUCCION_EMPLEADO, null]
+        origen_id:
+          type: integer
+          nullable: true
+        descripcion:
+          type: string
+          nullable: true
+    PagoNominaInput:
+      type: object
+      properties:
+        fecha_pago:
+          type: string
+          format: date
+          description: Por defecto, la fecha de pago del periodo.
+        medio:
+          type: string
+          enum: [TRANSFERENCIA, EFECTIVO, CHEQUE, OTRO]
+          default: TRANSFERENCIA
+        referencia:
+          type: string
+          maxLength: 100
+        observaciones:
+          type: string
+    NominaDetalle:
+      allOf:
+        - $ref: "#/components/schemas/Nomina"
+        - type: object
+          properties:
+            detalles:
+              type: array
+              items:
+                $ref: "#/components/schemas/DetalleNomina"
+            pagos:
+              type: array
+              items:
+                type: object
+                properties:
+                  id:
+                    type: integer
+                  fecha_pago:
+                    type: string
+                    format: date
+                  valor:
+                    type: number
+                  medio:
+                    type: string
+                  referencia:
+                    type: string
+                    nullable: true
+                  observaciones:
+                    type: string
+                    nullable: true
+    RespuestaNomina:
+      type: object
+      required: [message, nomina]
+      properties:
+        message:
+          type: string
+        nomina:
+          $ref: "#/components/schemas/NominaDetalle"
+    ResultadoGeneracion:
+      type: object
+      required: [periodo, nominas, omitidas, errores]
+      properties:
+        message:
+          type: string
+        periodo:
+          $ref: "#/components/schemas/PeriodoNomina"
+        nominas:
+          type: array
+          items:
+            $ref: "#/components/schemas/NominaDetalle"
+        omitidas:
+          type: array
+          items:
+            type: object
+            properties:
+              contrato_id:
+                type: integer
+              empleado_id:
+                type: integer
+              nomina_id:
+                type: integer
+              motivo:
+                type: string
+        errores:
+          type: array
+          items:
+            type: object
+            properties:
+              contrato_id:
+                type: integer
+              empleado_id:
+                type: integer
+              error:
+                type: string
