@@ -906,6 +906,69 @@ def receipt_data(current_user, nomina_id):
     }
 
 
+def report_data(current_user, periodo_id=None, estado=None, desde=None, hasta=None):
+    """Reúne las nóminas de la empresa para el reporte general (sin paginar)."""
+    empresa_id = _empresa_id_for_user(current_user)
+    empresa = db.session.get(Empresa, empresa_id)
+
+    if estado is not None and estado not in ESTADOS:
+        raise NominaValidationError(f"estado debe ser uno de: {', '.join(sorted(ESTADOS))}.")
+
+    query = _scoped_nominas(empresa_id).join(
+        PeriodoNomina, PeriodoNomina.id == Nomina.periodo_id
+    )
+    periodo_parsed = _parse_query_int(periodo_id, "periodo_id")
+    if periodo_parsed is not None:
+        query = query.filter(Nomina.periodo_id == periodo_parsed)
+    if estado is not None:
+        query = query.filter(Nomina.estado == estado)
+
+    desde_date = _parse_date(desde, "desde") if desde is not None else None
+    hasta_date = _parse_date(hasta, "hasta") if hasta is not None else None
+    if desde_date is not None:
+        query = query.filter(PeriodoNomina.fecha_fin >= desde_date)
+    if hasta_date is not None:
+        query = query.filter(PeriodoNomina.fecha_inicio <= hasta_date)
+
+    nominas = query.order_by(Nomina.periodo_id.desc(), Nomina.id).all()
+    items = [_serialize_nomina(nomina) for nomina in nominas]
+
+    vigentes = [nomina for nomina in nominas if nomina.estado != "ANULADA"]
+    por_estado = defaultdict(int)
+    for nomina in nominas:
+        por_estado[nomina.estado] += 1
+
+    return {
+        "empresa": {
+            "nit": empresa.nit,
+            "razon_social": empresa.razon_social,
+            "direccion": empresa.direccion,
+            "telefono": empresa.telefono,
+            "correo": empresa.correo,
+        },
+        "filtros": {
+            "periodo_id": periodo_parsed,
+            "estado": estado,
+            "desde": desde_date.isoformat() if desde_date else None,
+            "hasta": hasta_date.isoformat() if hasta_date else None,
+        },
+        "nominas": items,
+        "resumen": {
+            "nominas": len(nominas),
+            "por_estado": dict(por_estado),
+            "total_devengado": _json_money(
+                sum((_dec(n.total_devengado) for n in vigentes), Decimal("0"))
+            ),
+            "total_deducciones": _json_money(
+                sum((_dec(n.total_deducciones) for n in vigentes), Decimal("0"))
+            ),
+            "neto_pagar": _json_money(
+                sum((_dec(n.neto_pagar) for n in vigentes), Decimal("0"))
+            ),
+        },
+    }
+
+
 def _detalles_origen(nomina, origen_tipo):
     return DetalleNomina.query.filter_by(nomina_id=nomina.id, origen_tipo=origen_tipo).all()
 

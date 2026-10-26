@@ -2343,6 +2343,44 @@ paths:
         "400": {$ref: "#/components/responses/Invalido"}
         "401": {$ref: "#/components/responses/NoAutenticado"}
         "403": {$ref: "#/components/responses/SinEmpresa"}
+  /nominas/reporte:
+    get:
+      tags: [Nómina]
+      summary: Descargar el reporte general de nóminas (PDF o Excel)
+      description: >-
+        Genera un reporte con las nóminas de la empresa en PDF o Excel. Admite
+        filtros por periodo, estado y rango de fechas del periodo. Los totales
+        excluyen las nóminas anuladas.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: formato
+          in: query
+          schema: {type: string, enum: [pdf, excel, xlsx], default: pdf}
+          description: Formato del reporte. `excel` y `xlsx` producen un archivo .xlsx.
+        - {name: periodo_id, in: query, schema: {type: integer, minimum: 1}}
+        - name: estado
+          in: query
+          schema:
+            type: string
+            enum: [BORRADOR, APROBADA, PAGADA, ANULADA]
+        - {name: desde, in: query, schema: {type: string, format: date}}
+        - {name: hasta, in: query, schema: {type: string, format: date}}
+        - name: inline
+          in: query
+          schema: {type: string, enum: ["1"]}
+          description: Si es `1`, el archivo se devuelve en línea en vez de como adjunto.
+      responses:
+        "200":
+          description: Reporte generado.
+          content:
+            application/pdf:
+              schema: {type: string, format: binary}
+            application/vnd.openxmlformats-officedocument.spreadsheetml.sheet:
+              schema: {type: string, format: binary}
+        "400": {$ref: "#/components/responses/Invalido"}
+        "401": {$ref: "#/components/responses/NoAutenticado"}
+        "403": {$ref: "#/components/responses/SinEmpresa"}
   /nominas/{nomina_id}:
     parameters:
       - {name: nomina_id, in: path, required: true, schema: {type: integer, minimum: 1}}

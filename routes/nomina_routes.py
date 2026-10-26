@@ -11,6 +11,7 @@ from controllers.nomina_controller import (
     periods_index,
     periods_show,
     receipt,
+    report,
     show,
 )
 from services.auth_service import jwt_required
@@ -18,6 +19,7 @@ from services.auth_service import jwt_required
 
 nomina_bp = Blueprint("nominas", __name__, url_prefix="/nominas")
 nomina_bp.add_url_rule("", view_func=jwt_required(index), methods=["GET"])
+nomina_bp.add_url_rule("/reporte", view_func=jwt_required(report), methods=["GET"])
 nomina_bp.add_url_rule("/generar", view_func=jwt_required(generate), methods=["POST"])
 nomina_bp.add_url_rule("/<int:nomina_id>", view_func=jwt_required(show), methods=["GET"])
 nomina_bp.add_url_rule(

@@ -1,6 +1,7 @@
 from flask import jsonify, request, send_file
 
 from services.recibo_nomina_service import build_receipt
+from services.reporte_nomina_service import build_report_excel, build_report_pdf
 from services.nomina_service import (
     NominaConflictError,
     NominaForbiddenError,
@@ -83,6 +84,40 @@ def show(current_user, nomina_id):
     except ERRORS as error:
         return _error_response(error)
     return jsonify({"nomina": nomina})
+
+
+def report(current_user):
+    formato = (request.args.get("formato") or "pdf").lower()
+    builders = {
+        "pdf": (build_report_pdf, "application/pdf"),
+        "excel": (
+            build_report_excel,
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        ),
+        "xlsx": (
+            build_report_excel,
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        ),
+    }
+    if formato not in builders:
+        return jsonify({"error": "formato debe ser 'pdf' o 'excel'."}), 400
+    builder, mimetype = builders[formato]
+    try:
+        buffer, download_name = builder(
+            current_user,
+            periodo_id=request.args.get("periodo_id"),
+            estado=request.args.get("estado"),
+            desde=request.args.get("desde"),
+            hasta=request.args.get("hasta"),
+        )
+    except ERRORS as error:
+        return _error_response(error)
+    return send_file(
+        buffer,
+        mimetype=mimetype,
+        as_attachment=request.args.get("inline") != "1",
+        download_name=download_name,
+    )
 
 
 def receipt(current_user, nomina_id):
