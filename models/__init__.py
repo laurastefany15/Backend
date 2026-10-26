@@ -14,6 +14,7 @@ from .asignacion_horario import AsignacionHorario
 from .asistencia import Asistencia
 from .hora_extra import HoraExtra
 from .incapacidad import Incapacidad
+from .documento_incapacidad import DocumentoIncapacidad
 from .vacacion import Vacacion
 from .movimiento_vacaciones import MovimientoVacaciones
 from .licencia import Licencia
@@ -42,6 +43,7 @@ __all__ = [
     "Asistencia",
     "HoraExtra",
     "Incapacidad",
+    "DocumentoIncapacidad",
     "Vacacion",
     "MovimientoVacaciones",
     "Licencia",

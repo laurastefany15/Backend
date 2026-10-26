@@ -36,7 +36,6 @@ class Incapacidad(db.Model):
     fecha_fin = db.Column(Date, nullable=False)
     entidad_responsable = db.Column(String(150))
     numero_certificado = db.Column(String(100))
-    documento_soporte_url = db.Column(Text)
     porcentaje_reconocimiento = db.Column(Numeric(8, 4))
     valor_estimado = db.Column(Numeric(15, 2))
     valor_reconocido = db.Column(Numeric(15, 2))

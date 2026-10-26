@@ -11,6 +11,8 @@ tags:
   - name: Empleados
   - name: Contratos
   - name: Asistencias
+  - name: Vacaciones
+  - name: Incapacidades
   - name: Administración
 paths:
   /:
@@ -947,6 +949,1174 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
+  /vacaciones:
+    get:
+      tags: [Vacaciones]
+      summary: Listar vacaciones de la empresa del usuario
+      description: Requiere JWT. Solo incluye vacaciones de contratos de la empresa asociada.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - name: per_page
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+        - name: contrato_id
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+        - name: estado
+          in: query
+          schema:
+            type: string
+            enum: [SOLICITADA, APROBADA, DISFRUTADA, CANCELADA]
+      responses:
+        "200":
+          description: Listado paginado de vacaciones.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ListaVacaciones"
+        "400":
+          description: Parámetros inválidos.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "401":
+          description: Token ausente, inválido o expirado.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: El usuario no está asociado a una empresa activa.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: El contrato indicado no pertenece a la empresa.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+    post:
+      tags: [Vacaciones]
+      summary: Registrar una vacación
+      description: Requiere JWT. El contrato debe pertenecer a la empresa del usuario y estar activo.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/VacacionInput"
+      responses:
+        "201":
+          description: Vacación creada.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RespuestaVacacion"
+        "400":
+          description: Cuerpo inválido.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "401":
+          description: Token ausente, inválido o expirado.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: El usuario no está asociado a una empresa activa.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: Contrato no encontrado en la empresa.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "409":
+          description: Contrato terminado, fechas cruzadas o saldo insuficiente.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+  /vacaciones/saldos:
+    get:
+      tags: [Vacaciones]
+      summary: Consultar el saldo de vacaciones
+      description: >
+        Requiere JWT. Devuelve la suma de días de los movimientos de cada contrato,
+        igual que la vista vw_saldo_vacaciones.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - name: per_page
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+        - name: contrato_id
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+      responses:
+        "200":
+          description: Saldos paginados.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ListaSaldosVacaciones"
+        "400":
+          description: Parámetros inválidos.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "401":
+          description: Token ausente, inválido o expirado.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: El usuario no está asociado a una empresa activa.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: El contrato indicado no pertenece a la empresa.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+  /vacaciones/{vacacion_id}:
+    parameters:
+      - name: vacacion_id
+        in: path
+        required: true
+        schema:
+          type: integer
+          minimum: 1
+    get:
+      tags: [Vacaciones]
+      summary: Consultar una vacación
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Vacación consultada.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [vacacion]
+                properties:
+                  vacacion:
+                    $ref: "#/components/schemas/Vacacion"
+        "401":
+          description: Token ausente, inválido o expirado.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: El usuario no está asociado a una empresa activa.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: Vacación no encontrada en la empresa del usuario.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+    put:
+      tags: [Vacaciones]
+      summary: Reemplazar una vacación
+      description: Los campos opcionales omitidos se limpian o vuelven a su valor por defecto.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/VacacionInput"
+      responses:
+        "200":
+          description: Vacación actualizada.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RespuestaVacacion"
+        "400":
+          description: Cuerpo inválido.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "401":
+          description: Token ausente, inválido o expirado.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: El usuario no está asociado a una empresa activa.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: Vacación o contrato no encontrado.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "409":
+          description: Contrato terminado, fechas cruzadas o saldo insuficiente.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+    patch:
+      tags: [Vacaciones]
+      summary: Actualizar campos de una vacación
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/VacacionInput"
+      responses:
+        "200":
+          description: Vacación actualizada.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RespuestaVacacion"
+        "400":
+          description: Cuerpo inválido.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "401":
+          description: Token ausente, inválido o expirado.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: El usuario no está asociado a una empresa activa.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: Vacación o contrato no encontrado.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "409":
+          description: Contrato terminado, fechas cruzadas o saldo insuficiente.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+    delete:
+      tags: [Vacaciones]
+      summary: Cancelar una vacación
+      description: Eliminación lógica. El estado queda en CANCELADA y se retira el disfrute asociado.
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Vacación cancelada.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RespuestaVacacion"
+        "401":
+          description: Token ausente, inválido o expirado.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: El usuario no está asociado a una empresa activa.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: Vacación no encontrada en la empresa del usuario.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+  /movimientos-vacaciones:
+    get:
+      tags: [Vacaciones]
+      summary: Listar movimientos de vacaciones
+      description: Requiere JWT. Causación suma días y disfrute o compensación los restan.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - name: per_page
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+        - name: contrato_id
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+        - name: vacaciones_id
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+        - name: tipo
+          in: query
+          schema:
+            type: string
+            enum: [CAUSACION, DISFRUTE, COMPENSACION, AJUSTE]
+      responses:
+        "200":
+          description: Listado paginado de movimientos.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ListaMovimientosVacaciones"
+        "400":
+          description: Parámetros inválidos.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "401":
+          description: Token ausente, inválido o expirado.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: El usuario no está asociado a una empresa activa.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: El contrato o la vacación indicados no pertenecen a la empresa.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+    post:
+      tags: [Vacaciones]
+      summary: Registrar un movimiento de vacaciones
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MovimientoVacacionesInput"
+      responses:
+        "201":
+          description: Movimiento creado.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RespuestaMovimientoVacaciones"
+        "400":
+          description: Cuerpo inválido o signo de días incompatible con el tipo.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "401":
+          description: Token ausente, inválido o expirado.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: El usuario no está asociado a una empresa activa.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: Contrato o vacación no encontrados en la empresa.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "409":
+          description: Saldo negativo, contrato terminado o disfrute duplicado.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+  /movimientos-vacaciones/{movimiento_id}:
+    parameters:
+      - name: movimiento_id
+        in: path
+        required: true
+        schema:
+          type: integer
+          minimum: 1
+    get:
+      tags: [Vacaciones]
+      summary: Consultar un movimiento de vacaciones
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Movimiento consultado.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [movimiento]
+                properties:
+                  movimiento:
+                    $ref: "#/components/schemas/MovimientoVacaciones"
+        "401":
+          description: Token ausente, inválido o expirado.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: El usuario no está asociado a una empresa activa.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: Movimiento no encontrado en la empresa del usuario.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+    put:
+      tags: [Vacaciones]
+      summary: Reemplazar un movimiento de vacaciones
+      description: Los campos opcionales omitidos se limpian.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MovimientoVacacionesInput"
+      responses:
+        "200":
+          description: Movimiento actualizado.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RespuestaMovimientoVacaciones"
+        "400":
+          description: Cuerpo inválido.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "401":
+          description: Token ausente, inválido o expirado.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: El usuario no está asociado a una empresa activa.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: Movimiento, contrato o vacación no encontrados.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "409":
+          description: Saldo negativo, disfrute de una vacación disfrutada o disfrute duplicado.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+    patch:
+      tags: [Vacaciones]
+      summary: Actualizar campos de un movimiento de vacaciones
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MovimientoVacacionesInput"
+      responses:
+        "200":
+          description: Movimiento actualizado.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RespuestaMovimientoVacaciones"
+        "400":
+          description: Cuerpo inválido.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "401":
+          description: Token ausente, inválido o expirado.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: El usuario no está asociado a una empresa activa.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: Movimiento, contrato o vacación no encontrados.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "409":
+          description: Saldo negativo, disfrute de una vacación disfrutada o disfrute duplicado.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+    delete:
+      tags: [Vacaciones]
+      summary: Eliminar un movimiento de vacaciones
+      description: No elimina el disfrute ligado a una vacación en estado DISFRUTADA.
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Movimiento eliminado.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RespuestaMovimientoVacaciones"
+        "401":
+          description: Token ausente, inválido o expirado.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: El usuario no está asociado a una empresa activa.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: Movimiento no encontrado en la empresa del usuario.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "409":
+          description: El movimiento dejaría el saldo negativo o pertenece a una vacación disfrutada.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+  /incapacidades:
+    get:
+      tags: [Incapacidades]
+      summary: Listar incapacidades de la empresa del usuario
+      description: Requiere JWT. Solo incluye incapacidades de contratos de la empresa asociada.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - name: per_page
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+        - name: contrato_id
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+        - name: estado
+          in: query
+          schema:
+            type: string
+            enum: [REGISTRADA, VALIDADA, EN_COBRO, PAGADA, RECHAZADA]
+        - name: tipo
+          in: query
+          schema:
+            type: string
+            enum: [ENFERMEDAD_GENERAL, ACCIDENTE_LABORAL, ENFERMEDAD_LABORAL, MATERNIDAD, PATERNIDAD, OTRA]
+      responses:
+        "200":
+          description: Listado paginado de incapacidades.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ListaIncapacidades"
+        "400":
+          description: Parámetros inválidos.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "401":
+          description: Token ausente, inválido o expirado.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: El usuario no está asociado a una empresa activa.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: El contrato indicado no pertenece a la empresa.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+    post:
+      tags: [Incapacidades]
+      summary: Registrar una incapacidad
+      description: >
+        Requiere JWT. El contrato debe pertenecer a la empresa del usuario y estar activo.
+        No exige soporte de la EPS. Con multipart/form-data se pueden adjuntar documentos
+        en la misma petición; los archivos quedan guardados en el servidor.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/IncapacidadInput"
+          multipart/form-data:
+            schema:
+              $ref: "#/components/schemas/IncapacidadMultipart"
+      responses:
+        "201":
+          description: Incapacidad creada.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RespuestaIncapacidad"
+        "400":
+          description: Cuerpo inválido.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "401":
+          description: Token ausente, inválido o expirado.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: El usuario no está asociado a una empresa activa.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: Contrato no encontrado en la empresa.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "409":
+          description: Contrato terminado o fechas cruzadas con otra ausencia.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+  /incapacidades/{incapacidad_id}:
+    parameters:
+      - name: incapacidad_id
+        in: path
+        required: true
+        schema:
+          type: integer
+          minimum: 1
+    get:
+      tags: [Incapacidades]
+      summary: Consultar una incapacidad
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Incapacidad consultada.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [incapacidad]
+                properties:
+                  incapacidad:
+                    $ref: "#/components/schemas/Incapacidad"
+        "401":
+          description: Token ausente, inválido o expirado.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: El usuario no está asociado a una empresa activa.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: Incapacidad no encontrada en la empresa del usuario.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+    put:
+      tags: [Incapacidades]
+      summary: Reemplazar una incapacidad
+      description: Los campos opcionales omitidos se limpian o vuelven a su valor por defecto.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/IncapacidadInput"
+      responses:
+        "200":
+          description: Incapacidad actualizada.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RespuestaIncapacidad"
+        "400":
+          description: Cuerpo inválido.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "401":
+          description: Token ausente, inválido o expirado.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: El usuario no está asociado a una empresa activa.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: Incapacidad o contrato no encontrado.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "409":
+          description: Contrato terminado o fechas cruzadas con otra ausencia.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+    patch:
+      tags: [Incapacidades]
+      summary: Actualizar campos de una incapacidad
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/IncapacidadInput"
+      responses:
+        "200":
+          description: Incapacidad actualizada.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RespuestaIncapacidad"
+        "400":
+          description: Cuerpo inválido.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "401":
+          description: Token ausente, inválido o expirado.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: El usuario no está asociado a una empresa activa.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: Incapacidad o contrato no encontrado.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "409":
+          description: Contrato terminado o fechas cruzadas con otra ausencia.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+    delete:
+      tags: [Incapacidades]
+      summary: Rechazar una incapacidad
+      description: Eliminación lógica. El estado queda en RECHAZADA.
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Incapacidad rechazada.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RespuestaIncapacidad"
+        "401":
+          description: Token ausente, inválido o expirado.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: El usuario no está asociado a una empresa activa.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: Incapacidad no encontrada en la empresa del usuario.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+  /incapacidades/{incapacidad_id}/documentos:
+    parameters:
+      - name: incapacidad_id
+        in: path
+        required: true
+        schema:
+          type: integer
+          minimum: 1
+    get:
+      tags: [Incapacidades]
+      summary: Listar documentos de una incapacidad
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Documentos de la incapacidad.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/DocumentoIncapacidad"
+        "401":
+          description: Token ausente, inválido o expirado.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: El usuario no está asociado a una empresa activa.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: Incapacidad no encontrada en la empresa del usuario.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+    post:
+      tags: [Incapacidades]
+      summary: Subir documentos a una incapacidad
+      description: Los archivos se guardan en el servidor. Se admiten PDF, PNG y JPG de hasta 10 MB.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              $ref: "#/components/schemas/DocumentosUpload"
+      responses:
+        "201":
+          description: Documentos cargados.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [message, documentos]
+                properties:
+                  message:
+                    type: string
+                  documentos:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/DocumentoIncapacidad"
+        "400":
+          description: Sin archivos, formato no admitido, contenido inválido o archivo muy grande.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "401":
+          description: Token ausente, inválido o expirado.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: El usuario no está asociado a una empresa activa.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: Incapacidad no encontrada en la empresa del usuario.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "413":
+          description: La petición supera 50 MB.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+  /incapacidades/{incapacidad_id}/documentos/{documento_id}:
+    parameters:
+      - name: incapacidad_id
+        in: path
+        required: true
+        schema:
+          type: integer
+          minimum: 1
+      - name: documento_id
+        in: path
+        required: true
+        schema:
+          type: integer
+          minimum: 1
+    get:
+      tags: [Incapacidades]
+      summary: Consultar los datos de un documento
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Datos del documento.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [documento]
+                properties:
+                  documento:
+                    $ref: "#/components/schemas/DocumentoIncapacidad"
+        "401":
+          description: Token ausente, inválido o expirado.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: El usuario no está asociado a una empresa activa.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: Documento o incapacidad no encontrados.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+    delete:
+      tags: [Incapacidades]
+      summary: Eliminar un documento
+      description: Borra el registro y el archivo guardado en el servidor.
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Documento eliminado.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [message, documento]
+                properties:
+                  message:
+                    type: string
+                  documento:
+                    $ref: "#/components/schemas/DocumentoIncapacidad"
+        "401":
+          description: Token ausente, inválido o expirado.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: El usuario no está asociado a una empresa activa.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: Documento o incapacidad no encontrados.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+  /incapacidades/{incapacidad_id}/documentos/{documento_id}/archivo:
+    parameters:
+      - name: incapacidad_id
+        in: path
+        required: true
+        schema:
+          type: integer
+          minimum: 1
+      - name: documento_id
+        in: path
+        required: true
+        schema:
+          type: integer
+          minimum: 1
+      - name: inline
+        in: query
+        description: Con 1 el navegador muestra el archivo en lugar de descargarlo.
+        schema:
+          type: string
+          enum: ["1"]
+    get:
+      tags: [Incapacidades]
+      summary: Descargar el archivo de un documento
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Archivo guardado en el servidor.
+          content:
+            application/pdf:
+              schema:
+                type: string
+                format: binary
+            image/png:
+              schema:
+                type: string
+                format: binary
+            image/jpeg:
+              schema:
+                type: string
+                format: binary
+        "401":
+          description: Token ausente, inválido o expirado.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: El usuario no está asociado a una empresa activa.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: Documento, incapacidad o archivo no encontrados.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
   /admin/empresas:
     get:
       tags: [Administración]
@@ -1856,3 +3026,293 @@ components:
           type: string
         activa:
           type: boolean
+    VacacionInput:
+      type: object
+      required: [contrato_id, fecha_inicio, fecha_fin, dias_habiles]
+      properties:
+        contrato_id:
+          type: integer
+          minimum: 1
+          example: 1
+        fecha_inicio:
+          type: string
+          format: date
+          example: "2026-06-01"
+        fecha_fin:
+          type: string
+          format: date
+          example: "2026-06-05"
+        fecha_reintegro:
+          type: string
+          format: date
+          nullable: true
+          example: "2026-06-08"
+        dias_habiles:
+          type: number
+          exclusiveMinimum: 0
+          example: 5
+        estado:
+          type: string
+          enum: [SOLICITADA, APROBADA, DISFRUTADA, CANCELADA]
+          default: SOLICITADA
+        observaciones:
+          type: string
+          nullable: true
+    Vacacion:
+      allOf:
+        - $ref: "#/components/schemas/VacacionInput"
+        - type: object
+          required: [id, aprobada_por]
+          properties:
+            id:
+              type: integer
+              readOnly: true
+            aprobada_por:
+              type: integer
+              nullable: true
+              readOnly: true
+    ListaVacaciones:
+      type: object
+      required: [items, pagination]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/Vacacion"
+        pagination:
+          $ref: "#/components/schemas/Paginacion"
+    RespuestaVacacion:
+      type: object
+      required: [message, vacacion]
+      properties:
+        message:
+          type: string
+        vacacion:
+          $ref: "#/components/schemas/Vacacion"
+    SaldoVacaciones:
+      type: object
+      required: [contrato_id, empleado_id, dias_saldo]
+      properties:
+        contrato_id:
+          type: integer
+        empleado_id:
+          type: integer
+        dias_saldo:
+          type: number
+          example: 10
+    ListaSaldosVacaciones:
+      type: object
+      required: [items, pagination]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/SaldoVacaciones"
+        pagination:
+          $ref: "#/components/schemas/Paginacion"
+    MovimientoVacacionesInput:
+      type: object
+      required: [contrato_id, fecha, tipo, dias]
+      properties:
+        contrato_id:
+          type: integer
+          minimum: 1
+          example: 1
+        vacaciones_id:
+          type: integer
+          minimum: 1
+          nullable: true
+        fecha:
+          type: string
+          format: date
+          example: "2026-05-31"
+        tipo:
+          type: string
+          enum: [CAUSACION, DISFRUTE, COMPENSACION, AJUSTE]
+          example: CAUSACION
+        dias:
+          type: number
+          example: 15
+        observacion:
+          type: string
+          nullable: true
+    MovimientoVacaciones:
+      allOf:
+        - $ref: "#/components/schemas/MovimientoVacacionesInput"
+        - type: object
+          required: [id]
+          properties:
+            id:
+              type: integer
+              readOnly: true
+    ListaMovimientosVacaciones:
+      type: object
+      required: [items, pagination]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/MovimientoVacaciones"
+        pagination:
+          $ref: "#/components/schemas/Paginacion"
+    RespuestaMovimientoVacaciones:
+      type: object
+      required: [message, movimiento]
+      properties:
+        message:
+          type: string
+        movimiento:
+          $ref: "#/components/schemas/MovimientoVacaciones"
+    IncapacidadInput:
+      type: object
+      required: [contrato_id, tipo, fecha_inicio, fecha_fin]
+      properties:
+        contrato_id:
+          type: integer
+          minimum: 1
+          example: 1
+        tipo:
+          type: string
+          enum: [ENFERMEDAD_GENERAL, ACCIDENTE_LABORAL, ENFERMEDAD_LABORAL, MATERNIDAD, PATERNIDAD, OTRA]
+          example: ENFERMEDAD_GENERAL
+        fecha_inicio:
+          type: string
+          format: date
+          example: "2026-04-01"
+        fecha_fin:
+          type: string
+          format: date
+          example: "2026-04-03"
+        entidad_responsable:
+          type: string
+          maxLength: 150
+          nullable: true
+          description: Opcional. La incapacidad se puede registrar sin soporte de la EPS.
+        numero_certificado:
+          type: string
+          maxLength: 100
+          nullable: true
+          description: Opcional. La incapacidad se puede registrar sin soporte de la EPS.
+        porcentaje_reconocimiento:
+          type: number
+          minimum: 0
+          maximum: 100
+          nullable: true
+          example: 66.67
+        valor_estimado:
+          type: number
+          minimum: 0
+          nullable: true
+        valor_reconocido:
+          type: number
+          minimum: 0
+          nullable: true
+        estado:
+          type: string
+          enum: [REGISTRADA, VALIDADA, EN_COBRO, PAGADA, RECHAZADA]
+          default: REGISTRADA
+        observaciones:
+          type: string
+          nullable: true
+    Incapacidad:
+      allOf:
+        - $ref: "#/components/schemas/IncapacidadInput"
+        - type: object
+          required: [id, documentos]
+          properties:
+            id:
+              type: integer
+              readOnly: true
+            documentos:
+              type: array
+              readOnly: true
+              items:
+                $ref: "#/components/schemas/DocumentoIncapacidad"
+    IncapacidadMultipart:
+      allOf:
+        - $ref: "#/components/schemas/IncapacidadInput"
+        - type: object
+          properties:
+            tipo_documento:
+              type: string
+              enum: [CERTIFICADO_EPS, HISTORIA_CLINICA, TRANSCRIPCION, OTRO]
+              default: OTRO
+            documentos:
+              type: array
+              description: Archivos PDF, PNG o JPG de hasta 10 MB cada uno. Opcional.
+              items:
+                type: string
+                format: binary
+    DocumentosUpload:
+      type: object
+      required: [documentos]
+      properties:
+        tipo:
+          type: string
+          enum: [CERTIFICADO_EPS, HISTORIA_CLINICA, TRANSCRIPCION, OTRO]
+          default: OTRO
+        documentos:
+          type: array
+          description: Archivos PDF, PNG o JPG de hasta 10 MB cada uno.
+          items:
+            type: string
+            format: binary
+    DocumentoIncapacidad:
+      type: object
+      required: [id, incapacidad_id, tipo, nombre_original, content_type, tamano_bytes, descarga]
+      properties:
+        id:
+          type: integer
+        incapacidad_id:
+          type: integer
+        tipo:
+          type: string
+          enum: [CERTIFICADO_EPS, HISTORIA_CLINICA, TRANSCRIPCION, OTRO]
+        nombre_original:
+          type: string
+        content_type:
+          type: string
+          example: application/pdf
+        tamano_bytes:
+          type: integer
+        subido_por:
+          type: integer
+          nullable: true
+        creado_en:
+          type: string
+          format: date-time
+          nullable: true
+        descarga:
+          type: string
+          description: Ruta de la API que entrega el archivo guardado en el servidor.
+          example: /incapacidades/1/documentos/1/archivo
+    ListaIncapacidades:
+      type: object
+      required: [items, pagination]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/Incapacidad"
+        pagination:
+          $ref: "#/components/schemas/Paginacion"
+    RespuestaIncapacidad:
+      type: object
+      required: [message, incapacidad]
+      properties:
+        message:
+          type: string
+        incapacidad:
+          $ref: "#/components/schemas/Incapacidad"
+    Paginacion:
+      type: object
+      required: [page, per_page, total, pages]
+      properties:
+        page:
+          type: integer
+        per_page:
+          type: integer
+        total:
+          type: integer
+        pages:
+          type: integer

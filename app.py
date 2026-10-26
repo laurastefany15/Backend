@@ -13,7 +13,10 @@ from routes.auth_routes import auth_bp
 from routes.contrato_routes import contrato_bp
 from routes.empleado_routes import empleado_bp
 from routes.empresa_routes import empresa_bp
+from routes.incapacidad_routes import incapacidad_bp
+from routes.movimiento_vacaciones_routes import movimiento_vacaciones_bp
 from routes.usuario_empresa_routes import usuario_empresa_bp
+from routes.vacacion_routes import vacacion_bp
 from flask_swagger_ui import get_swaggerui_blueprint
 
 
@@ -25,6 +28,9 @@ def create_app(test_config=None):
         SQLALCHEMY_TRACK_MODIFICATIONS=False,
         JWT_SECRET_KEY=os.environ.get("JWT_SECRET_KEY"),
         JWT_ACCESS_TOKEN_EXPIRES=3600,
+        UPLOAD_FOLDER=os.path.join(app.instance_path, "uploads"),
+        MAX_DOCUMENT_BYTES=10 * 1024 * 1024,
+        MAX_CONTENT_LENGTH=50 * 1024 * 1024,
     )
     if test_config:
         app.config.update(test_config)
@@ -37,6 +43,9 @@ def create_app(test_config=None):
     app.register_blueprint(empleado_bp)
     app.register_blueprint(contrato_bp)
     app.register_blueprint(asistencia_bp)
+    app.register_blueprint(vacacion_bp)
+    app.register_blueprint(movimiento_vacaciones_bp)
+    app.register_blueprint(incapacidad_bp)
     app.register_blueprint(empresa_bp)
     app.register_blueprint(usuario_empresa_bp)
     app.register_blueprint(
@@ -54,6 +63,10 @@ def create_app(test_config=None):
             "openapi.yaml",
             mimetype="application/yaml",
         )
+
+    @app.errorhandler(413)
+    def request_too_large(_error):
+        return jsonify({"error": "La petición supera el tamaño máximo de 50 MB."}), 413
 
     @app.get("/")
     def index():

@@ -82,6 +82,85 @@ a un empleado.
 `entrada`. `estado` admite `REGISTRADA`, `VALIDADA` y `ANULADA`. El contrato
 debe pertenecer a la empresa del usuario y estar activo para crear un registro.
 
+## Vacaciones
+
+Las rutas requieren JWT y solo operan sobre contratos de la empresa del usuario.
+El saldo sigue la vista `vw_saldo_vacaciones`: la suma de los días de
+`movimientos_vacaciones` del contrato.
+
+- `GET /vacaciones?page=1&per_page=20&contrato_id=1&estado=SOLICITADA`: lista vacaciones.
+- `POST /vacaciones`: crea una vacación. Requiere `contrato_id`, `fecha_inicio`,
+  `fecha_fin` y `dias_habiles`.
+- `GET /vacaciones/saldos?contrato_id=1`: consulta el saldo por contrato.
+- `GET /vacaciones/<id>`: consulta una vacación.
+- `PUT /vacaciones/<id>`: reemplaza la vacación; los campos opcionales omitidos se limpian.
+- `PATCH /vacaciones/<id>`: actualiza solo los campos enviados.
+- `DELETE /vacaciones/<id>`: cancela la vacación (`estado` queda en `CANCELADA`).
+
+`estado` admite `SOLICITADA`, `APROBADA`, `DISFRUTADA` y `CANCELADA`.
+`aprobada_por` lo asigna el sistema al pasar a `APROBADA` o `DISFRUTADA`.
+Al marcar `DISFRUTADA` se registra un movimiento de tipo `DISFRUTE` con los días
+en negativo, si el saldo alcanza. Al salir de ese estado, ese movimiento se retira.
+Las fechas no pueden cruzarse con otra vacación activa ni con una incapacidad
+vigente del mismo contrato. `fecha_reintegro`, si se envía, debe ser posterior a
+`fecha_fin`.
+
+## Movimientos de vacaciones
+
+- `GET /movimientos-vacaciones?contrato_id=1&vacaciones_id=1&tipo=CAUSACION`: lista movimientos.
+- `POST /movimientos-vacaciones`: crea un movimiento. Requiere `contrato_id`,
+  `fecha`, `tipo` y `dias`.
+- `GET /movimientos-vacaciones/<id>`: consulta un movimiento.
+- `PUT /movimientos-vacaciones/<id>`: reemplaza el movimiento.
+- `PATCH /movimientos-vacaciones/<id>`: actualiza solo los campos enviados.
+- `DELETE /movimientos-vacaciones/<id>`: elimina el movimiento.
+
+`tipo` admite `CAUSACION` (días positivos), `DISFRUTE` y `COMPENSACION` (días
+negativos) y `AJUSTE`. El saldo resultante no puede quedar negativo. El disfrute
+generado por una vacación `DISFRUTADA` se modifica desde la vacación.
+
+## Incapacidades
+
+- `GET /incapacidades?page=1&per_page=20&contrato_id=1&estado=REGISTRADA&tipo=ENFERMEDAD_GENERAL`:
+  lista incapacidades.
+- `POST /incapacidades`: crea una incapacidad. Requiere `contrato_id`, `tipo`,
+  `fecha_inicio` y `fecha_fin`.
+- `GET /incapacidades/<id>`: consulta una incapacidad.
+- `PUT /incapacidades/<id>`: reemplaza la incapacidad; los campos opcionales omitidos se limpian.
+- `PATCH /incapacidades/<id>`: actualiza solo los campos enviados.
+- `DELETE /incapacidades/<id>`: rechaza la incapacidad (`estado` queda en `RECHAZADA`).
+
+`tipo` admite `ENFERMEDAD_GENERAL`, `ACCIDENTE_LABORAL`, `ENFERMEDAD_LABORAL`,
+`MATERNIDAD`, `PATERNIDAD` y `OTRA`. `estado` admite `REGISTRADA`, `VALIDADA`,
+`EN_COBRO`, `PAGADA` y `RECHAZADA`. `porcentaje_reconocimiento` va de 0 a 100.
+Las fechas no pueden cruzarse con otra incapacidad vigente ni con una vacación
+activa del mismo contrato.
+
+La incapacidad no exige soporte de la EPS: `entidad_responsable`,
+`numero_certificado` y los documentos son opcionales.
+
+### Documentos de incapacidad
+
+Los documentos se suben como archivos y quedan guardados en el servidor, en
+`instance/uploads/incapacidades/<id>/`, con un nombre aleatorio. La API no
+recibe URLs.
+
+- `POST /incapacidades` con `multipart/form-data`: crea la incapacidad y adjunta
+  los archivos del campo `documentos` en la misma petición. `tipo_documento`
+  es opcional.
+- `GET /incapacidades/<id>/documentos`: lista los documentos.
+- `POST /incapacidades/<id>/documentos`: sube uno o varios archivos en el campo
+  `documentos` (`multipart/form-data`). `tipo` es opcional.
+- `GET /incapacidades/<id>/documentos/<doc_id>`: consulta los datos del documento.
+- `GET /incapacidades/<id>/documentos/<doc_id>/archivo`: descarga el archivo
+  (`?inline=1` para verlo en el navegador).
+- `DELETE /incapacidades/<id>/documentos/<doc_id>`: borra el documento y su archivo.
+
+El tipo de documento admite `CERTIFICADO_EPS`, `HISTORIA_CLINICA`,
+`TRANSCRIPCION` y `OTRO` (por defecto). Se aceptan PDF, PNG y JPG de hasta
+10 MB por archivo y 50 MB por petición; el contenido se verifica, no solo la
+extensión.
+
 ## Empresas
 
 El CRUD de empresas está en rutas protegidas que requieren JWT y el rol `ADMIN`:
