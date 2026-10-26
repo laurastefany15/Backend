@@ -161,6 +161,80 @@ El tipo de documento admite `CERTIFICADO_EPS`, `HISTORIA_CLINICA`,
 10 MB por archivo y 50 MB por petición; el contenido se verifica, no solo la
 extensión.
 
+## Horas extras
+
+- `GET /horas-extras?contrato_id=1&estado=APROBADA&desde=2026-08-01&hasta=2026-08-15`: lista registros.
+- `POST /horas-extras`: registra horas. Requiere `contrato_id`, `tipo_codigo`, `fecha` y
+  `cantidad_horas` (máximo 24). `asistencia_id` es opcional.
+- `GET /horas-extras/<id>`, `PUT /horas-extras/<id>`, `PATCH /horas-extras/<id>`.
+- `DELETE /horas-extras/<id>`: rechaza el registro (`estado` queda en `RECHAZADA`).
+
+`tipo_codigo` admite los tipos de recargo activos: `HED`, `HEN`, `RN`, `RDD`, `RDN`,
+`HEDD` y `HEDN`. `estado` admite `PENDIENTE`, `APROBADA` y `RECHAZADA`; solo las
+aprobadas entran en la nómina. Al aprobarse la nómina pasan a `LIQUIDADA` y ya no
+se pueden modificar.
+
+## Nómina quincenal
+
+La nómina se liquida por quincenas: del 1 al 15 y del 16 al último día del mes.
+Cada quincena vale 15 días comerciales (mes de 30 días): el día 31 no suma y el
+último día de febrero completa los días que faltan.
+
+- `POST /nominas/generar`: liquida una quincena. Indique `{"fecha": "2026-08-10"}`
+  o `{"anio": 2026, "mes": 8, "quincena": 1}`. Sin más campos liquida todos los
+  contratos de la empresa vigentes en la quincena. Con `empleado_id` o
+  `contrato_id` liquida solo ese empleado o contrato. `fecha_pago` es opcional
+  (por defecto, el último día de la quincena).
+- `GET /nominas?periodo_id=1&empleado_id=1&contrato_id=1&estado=BORRADOR`: lista nóminas.
+- `GET /nominas/<id>`: nómina con el detalle de conceptos y pagos.
+- `GET /nominas/<id>/recibo`: descarga el recibo de nómina del empleado en PDF.
+  Por defecto se descarga como adjunto; use `?inline=1` para abrirlo en el navegador.
+- `GET /nominas/reporte?formato=pdf|excel`: descarga un reporte general de las
+  nóminas de la empresa en PDF o Excel. Acepta los filtros `periodo_id`, `estado`,
+  `desde` y `hasta` (por fecha del periodo). Los totales excluyen las nóminas
+  anuladas; use `?inline=1` para abrir el PDF en el navegador.
+- `POST /nominas/<id>/aprobar`: pasa de `BORRADOR` a `APROBADA`.
+- `POST /nominas/<id>/anular`: anula una nómina en `BORRADOR` o `APROBADA`.
+- `POST /nominas/<id>/pagar`: registra el pago del neto (`medio`, `referencia`,
+  `fecha_pago` opcionales) y la deja en `PAGADA`.
+- `GET /nominas/periodos` y `GET /nominas/periodos/<id>`: periodos con totales.
+- `POST /nominas/periodos/<id>/aprobar`: aprueba todas las nóminas en borrador.
+- `POST /nominas/periodos/<id>/cerrar`: cierra el periodo si no quedan borradores.
+
+Volver a generar una quincena recalcula las nóminas en `BORRADOR` o `ANULADA` y
+omite las `APROBADA` o `PAGADA`. Si a un contrato le falta un parámetro o una
+tarifa vigente, se informa en `errores` y los demás contratos se liquidan igual.
+
+### Qué se liquida
+
+- **Salario**: salario diario (salario mensual / 30) por los días trabajados. Si
+  hay cambios en `historial_salarios`, se usa el salario vigente de cada día.
+- **Vacaciones** `APROBADA` o `DISFRUTADA`: los días del rango se pagan con el
+  salario diario, en el concepto `VACACIONES`.
+- **Incapacidades** no rechazadas: enfermedad general y `OTRA` al 66,67 % hasta el
+  día 90 y al 50 % desde el 91, nunca por debajo del SMMLV diario durante los
+  primeros 180 días. Accidente o enfermedad laboral, maternidad y paternidad al
+  100 %. Si la incapacidad tiene `porcentaje_reconocimiento`, se usa ese.
+- **Licencias** `APROBADA`: las remuneradas se pagan como salario; las no
+  remuneradas descuentan los días.
+- **Horas extras y recargos** aprobados: valor hora = salario / divisor
+  (`DIVISOR_HORA_MENSUAL` vigente o `horas_semanales × 5`). Los tipos `COMPLETO`
+  pagan la hora más el recargo y los `ADICIONAL` solo el recargo, con la tarifa
+  vigente en la fecha de la hora.
+- **Auxilio de transporte**: por días trabajados, si el contrato lo tiene y el
+  salario no supera `LIMITE_AUX_TRANSPORTE_SMMLV` veces el SMMLV.
+- **Salud y pensión** del trabajador sobre el IBC (conceptos que integran la
+  base de seguridad social), con mínimo de un SMMLV y máximo de 25,
+  proporcionales a los días pagados. **Fondo de solidaridad pensional** desde 4
+  SMMLV (1 % a 2 %). Los contratos de aprendizaje no tienen estos descuentos.
+- **Deducciones del empleado** (`deducciones_empleado`) activas y vigentes:
+  embargos, libranzas, préstamos y otras, en ese orden. Ninguna deja el neto en
+  negativo; si se recorta una cuota, queda anotado en `observaciones`.
+
+Al aprobar, las horas extras pasan a `LIQUIDADA` y baja el saldo de las
+deducciones; al anular una nómina aprobada se revierte. Si las novedades cambian
+después de generar la nómina, la aprobación pide volver a generarla.
+
 ## Empresas
 
 El CRUD de empresas está en rutas protegidas que requieren JWT y el rol `ADMIN`:

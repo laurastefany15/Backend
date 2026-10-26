@@ -13,8 +13,10 @@ from routes.auth_routes import auth_bp
 from routes.contrato_routes import contrato_bp
 from routes.empleado_routes import empleado_bp
 from routes.empresa_routes import empresa_bp
+from routes.hora_extra_routes import hora_extra_bp
 from routes.incapacidad_routes import incapacidad_bp
 from routes.movimiento_vacaciones_routes import movimiento_vacaciones_bp
+from routes.nomina_routes import nomina_bp
 from routes.usuario_empresa_routes import usuario_empresa_bp
 from routes.vacacion_routes import vacacion_bp
 from flask_swagger_ui import get_swaggerui_blueprint
@@ -46,6 +48,8 @@ def create_app(test_config=None):
     app.register_blueprint(vacacion_bp)
     app.register_blueprint(movimiento_vacaciones_bp)
     app.register_blueprint(incapacidad_bp)
+    app.register_blueprint(hora_extra_bp)
+    app.register_blueprint(nomina_bp)
     app.register_blueprint(empresa_bp)
     app.register_blueprint(usuario_empresa_bp)
     app.register_blueprint(
