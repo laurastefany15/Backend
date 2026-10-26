@@ -1,5 +1,6 @@
-from flask import jsonify, request
+from flask import jsonify, request, send_file
 
+from services.recibo_nomina_service import build_receipt
 from services.nomina_service import (
     NominaConflictError,
     NominaForbiddenError,
@@ -82,6 +83,19 @@ def show(current_user, nomina_id):
     except ERRORS as error:
         return _error_response(error)
     return jsonify({"nomina": nomina})
+
+
+def receipt(current_user, nomina_id):
+    try:
+        buffer, download_name = build_receipt(current_user, nomina_id)
+    except ERRORS as error:
+        return _error_response(error)
+    return send_file(
+        buffer,
+        mimetype="application/pdf",
+        as_attachment=request.args.get("inline") != "1",
+        download_name=download_name,
+    )
 
 
 def approve(current_user, nomina_id):

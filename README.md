@@ -187,6 +187,8 @@ Cada quincena vale 15 días comerciales (mes de 30 días): el día 31 no suma y 
   (por defecto, el último día de la quincena).
 - `GET /nominas?periodo_id=1&empleado_id=1&contrato_id=1&estado=BORRADOR`: lista nóminas.
 - `GET /nominas/<id>`: nómina con el detalle de conceptos y pagos.
+- `GET /nominas/<id>/recibo`: descarga el recibo de nómina del empleado en PDF.
+  Por defecto se descarga como adjunto; use `?inline=1` para abrirlo en el navegador.
 - `POST /nominas/<id>/aprobar`: pasa de `BORRADOR` a `APROBADA`.
 - `POST /nominas/<id>/anular`: anula una nómina en `BORRADOR` o `APROBADA`.
 - `POST /nominas/<id>/pagar`: registra el pago del neto (`medio`, `referencia`,

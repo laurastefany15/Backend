@@ -885,6 +885,27 @@ def get_payroll(current_user, nomina_id):
     return _serialize_nomina(_find_nomina(empresa_id, nomina_id), detalles=True)
 
 
+def receipt_data(current_user, nomina_id):
+    empresa_id = _empresa_id_for_user(current_user)
+    nomina = _find_nomina(empresa_id, nomina_id)
+    empresa = db.session.get(Empresa, empresa_id)
+    contrato = db.session.get(Contrato, nomina.contrato_id)
+    return {
+        "empresa": {
+            "nit": empresa.nit,
+            "razon_social": empresa.razon_social,
+            "direccion": empresa.direccion,
+            "telefono": empresa.telefono,
+            "correo": empresa.correo,
+        },
+        "contrato": {
+            "cargo": contrato.cargo,
+            "tipo_contrato": contrato.tipo_contrato,
+        },
+        "nomina": _serialize_nomina(nomina, detalles=True),
+    }
+
+
 def _detalles_origen(nomina, origen_tipo):
     return DetalleNomina.query.filter_by(nomina_id=nomina.id, origen_tipo=origen_tipo).all()
 

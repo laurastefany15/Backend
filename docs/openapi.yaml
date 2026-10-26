@@ -2365,6 +2365,33 @@ paths:
         "401": {$ref: "#/components/responses/NoAutenticado"}
         "403": {$ref: "#/components/responses/SinEmpresa"}
         "404": {$ref: "#/components/responses/NoEncontrado"}
+  /nominas/{nomina_id}/recibo:
+    parameters:
+      - {name: nomina_id, in: path, required: true, schema: {type: integer, minimum: 1}}
+    get:
+      tags: [Nómina]
+      summary: Descargar el recibo de nómina en PDF
+      description: >-
+        Genera el comprobante de pago de nómina del empleado en PDF. Por defecto
+        se devuelve como adjunto; con `inline=1` se entrega para visualizar en el
+        navegador.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: inline
+          in: query
+          required: false
+          schema: {type: string, enum: ["1"]}
+          description: Si es `1`, el PDF se devuelve en línea en vez de como adjunto.
+      responses:
+        "200":
+          description: Recibo de nómina en PDF.
+          content:
+            application/pdf:
+              schema: {type: string, format: binary}
+        "401": {$ref: "#/components/responses/NoAutenticado"}
+        "403": {$ref: "#/components/responses/SinEmpresa"}
+        "404": {$ref: "#/components/responses/NoEncontrado"}
   /nominas/{nomina_id}/aprobar:
     parameters:
       - {name: nomina_id, in: path, required: true, schema: {type: integer, minimum: 1}}
