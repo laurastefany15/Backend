@@ -1,15 +1,19 @@
 """
-app.py - Crea y configura la aplicación Flask (extensiones, blueprints, docs).
+app.py - Crea y configura la aplicación Flask (extensiones, blueprints, docs, manejo de errores).
 Entradas: config_name (opcional) o variable APP_ENV; test_config (opcional) para pruebas.
-Esperado: devuelve la app lista; en producción falla si la configuración es insegura.
-Cambios: 2026-11-10 | Stiven B | configuración movida a config.py 
+Esperado: devuelve la app lista; en producción falla si la configuración es insegura; todo error responde en JSON.
+Cambios: 2026-11-10 | Stiven B | configuración movida a config.py
+         2026-11-10 | Stiven B | manejador central de errores en JSON
 """
+import logging
 import os
 from importlib import import_module
 
 from flask import Flask, jsonify, send_from_directory
 from flask_swagger_ui import get_swaggerui_blueprint
+from werkzeug.exceptions import HTTPException
 
+from common.errors import AppError
 from config import get_config
 from extensions import db, migrate
 from routes.asistencia_routes import asistencia_bp
@@ -23,6 +27,28 @@ from routes.movimiento_vacaciones_routes import movimiento_vacaciones_bp
 from routes.nomina_routes import nomina_bp
 from routes.usuario_empresa_routes import usuario_empresa_bp
 from routes.vacacion_routes import vacacion_bp
+
+logger = logging.getLogger(__name__)
+
+
+def register_error_handlers(app):
+    @app.errorhandler(AppError)
+    def handle_app_error(error):
+        return jsonify({"error": error.message}), error.status_code
+
+    @app.errorhandler(HTTPException)
+    def handle_http_error(error):
+        # El 413 conserva su mensaje propio en español.
+        if error.code == 413:
+            message = "La petición supera el tamaño máximo de 50 MB."
+        else:
+            message = error.description
+        return jsonify({"error": message}), error.code
+
+    @app.errorhandler(Exception)
+    def handle_unexpected_error(error):
+        logger.exception("Error no controlado")
+        return jsonify({"error": "Error interno del servidor."}), 500
 
 
 def create_app(config_name=None, test_config=None):
@@ -65,9 +91,7 @@ def create_app(config_name=None, test_config=None):
             mimetype="application/yaml",
         )
 
-    @app.errorhandler(413)
-    def request_too_large(_error):
-        return jsonify({"error": "La petición supera el tamaño máximo de 50 MB."}), 413
+    register_error_handlers(app)
 
     @app.get("/")
     def index():
@@ -76,8 +100,8 @@ def create_app(config_name=None, test_config=None):
     return app
 
 
-# Se mantiene temporalmente porque los tests actuales hacen `from app import app`.
-# Se eliminará en un paso posterior, cuando los tests usen una fixture.
+# Se mantiene temporalmente porque los tests actuales hacen "from app import app".
+# Se eliminará cuando los tests usen una fixture.
 app = create_app()
 
 
