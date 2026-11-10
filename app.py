@@ -1,12 +1,16 @@
+"""
+app.py - Crea y configura la aplicación Flask (extensiones, blueprints, docs).
+Entradas: config_name (opcional) o variable APP_ENV; test_config (opcional) para pruebas.
+Esperado: devuelve la app lista; en producción falla si la configuración es insegura.
+Cambios: 2026-11-10 | Stiven B | configuración movida a config.py 
+"""
 import os
 from importlib import import_module
-from pathlib import Path
 
-from dotenv import load_dotenv
 from flask import Flask, jsonify, send_from_directory
+from flask_swagger_ui import get_swaggerui_blueprint
 
-load_dotenv(Path(__file__).resolve().parent / ".env")
-
+from config import get_config
 from extensions import db, migrate
 from routes.asistencia_routes import asistencia_bp
 from routes.auth_routes import auth_bp
@@ -19,21 +23,14 @@ from routes.movimiento_vacaciones_routes import movimiento_vacaciones_bp
 from routes.nomina_routes import nomina_bp
 from routes.usuario_empresa_routes import usuario_empresa_bp
 from routes.vacacion_routes import vacacion_bp
-from flask_swagger_ui import get_swaggerui_blueprint
 
 
-def create_app(test_config=None):
+def create_app(config_name=None, test_config=None):
     app = Flask(__name__)
-    app.config.from_mapping(
-        SQLALCHEMY_DATABASE_URI="sqlite:///"
-        + os.path.join(app.instance_path, "nomina.sqlite3").replace("\\", "/"),
-        SQLALCHEMY_TRACK_MODIFICATIONS=False,
-        JWT_SECRET_KEY=os.environ.get("JWT_SECRET_KEY"),
-        JWT_ACCESS_TOKEN_EXPIRES=3600,
-        UPLOAD_FOLDER=os.path.join(app.instance_path, "uploads"),
-        MAX_DOCUMENT_BYTES=10 * 1024 * 1024,
-        MAX_CONTENT_LENGTH=50 * 1024 * 1024,
-    )
+
+    config_class = get_config(config_name or os.environ.get("APP_ENV", "development"))
+    config_class.validate()
+    app.config.from_object(config_class)
     if test_config:
         app.config.update(test_config)
 
@@ -79,8 +76,10 @@ def create_app(test_config=None):
     return app
 
 
+# Se mantiene temporalmente porque los tests actuales hacen `from app import app`.
+# Se eliminará en un paso posterior, cuando los tests usen una fixture.
 app = create_app()
 
 
 if __name__ == "__main__":
-    app.run(debug=True)
+    app.run(debug=app.config["DEBUG"])

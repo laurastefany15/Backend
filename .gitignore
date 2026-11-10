@@ -13,3 +13,15 @@ __pycache__/
 # Base de datos y archivos locales
 instance/*.sqlite3
 instance/uploads/
+
+# Pruebas y herramientas
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Editores
+.vscode/
+.idea/
+
+# Frontend (cuando se integre al monorepo)
+node_modules/
