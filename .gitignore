@@ -1,7 +1,15 @@
+# Entornos virtuales de Python
 venv/
-.venv/
+.venv*/
+venv*/
+
+# Archivos temporales de Python
 __pycache__/
 *.py[cod]
+
+# Variables de entorno
 .env
+
+# Base de datos y archivos locales
 instance/*.sqlite3
 instance/uploads/
