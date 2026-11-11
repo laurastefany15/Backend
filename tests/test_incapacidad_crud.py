@@ -11,7 +11,7 @@ from werkzeug.security import generate_password_hash
 
 from app import app
 from extensions import db
-from models import Contrato, Empleado, Empresa, Usuario
+from models import Contrato, Empleado, Empresa, Usuario, UsuarioEmpresa
 from services.auth_service import create_access_token
 
 
@@ -34,7 +34,6 @@ class IncapacidadCrudTest(unittest.TestCase):
             correo=f"incapacidad.{suffix}@nomina.local",
             hash_password=generate_password_hash("clave-segura-1"),
             activo=True,
-            empresa_id=self.empresa.id,
         )
         self.empleado = Empleado(
             empresa_id=self.empresa.id,
@@ -46,6 +45,9 @@ class IncapacidadCrudTest(unittest.TestCase):
         )
         db.session.add_all([self.usuario, self.empleado])
         db.session.flush()
+        db.session.add(
+            UsuarioEmpresa(usuario_id=self.usuario.id, empresa_id=self.empresa.id)
+        )
         self.contrato = Contrato(
             empleado_id=self.empleado.id,
             tipo_contrato="INDEFINIDO",
@@ -90,6 +92,7 @@ class IncapacidadCrudTest(unittest.TestCase):
                 ("DELETE FROM vacaciones WHERE contrato_id = :contrato_id", params),
                 ("DELETE FROM contratos WHERE id = :contrato_id", params),
                 ("DELETE FROM empleados WHERE id = :empleado_id", params),
+                ("DELETE FROM usuarios_empresas WHERE usuario_id = :usuario_id", params),
                 ("DELETE FROM usuarios WHERE id = :usuario_id", params),
                 ("DELETE FROM empresas WHERE id = :empresa_id", params),
             ]
@@ -241,15 +244,20 @@ class IncapacidadCrudTest(unittest.TestCase):
             correo=f"ajeno.doc.{secrets.token_hex(4)}@nomina.local",
             hash_password=generate_password_hash("clave-segura-1"),
             activo=True,
-            empresa_id=otra.id,
         )
         db.session.add(ajeno)
+        db.session.flush()
+        db.session.add(UsuarioEmpresa(usuario_id=ajeno.id, empresa_id=otra.id))
         db.session.commit()
         try:
             headers = {"Authorization": f"Bearer {create_access_token(ajeno)}"}
             hidden = self.client.get(documento["descarga"], headers=headers)
             self.assertEqual(hidden.status_code, 404, hidden.get_json())
         finally:
+            db.session.execute(
+                text("DELETE FROM usuarios_empresas WHERE usuario_id = :id"),
+                {"id": ajeno.id},
+            )
             db.session.execute(text("DELETE FROM usuarios WHERE id = :id"), {"id": ajeno.id})
             db.session.execute(text("DELETE FROM empresas WHERE id = :id"), {"id": otra.id})
             db.session.commit()
@@ -382,15 +390,20 @@ class IncapacidadCrudTest(unittest.TestCase):
             correo=f"ajeno.inc.{secrets.token_hex(4)}@nomina.local",
             hash_password=generate_password_hash("clave-segura-1"),
             activo=True,
-            empresa_id=otra.id,
         )
         db.session.add(ajeno)
+        db.session.flush()
+        db.session.add(UsuarioEmpresa(usuario_id=ajeno.id, empresa_id=otra.id))
         db.session.commit()
         try:
             headers = {"Authorization": f"Bearer {create_access_token(ajeno)}"}
             hidden = self.client.get(f"/incapacidades/{incapacidad_id}", headers=headers)
             self.assertEqual(hidden.status_code, 404, hidden.get_json())
         finally:
+            db.session.execute(
+                text("DELETE FROM usuarios_empresas WHERE usuario_id = :id"),
+                {"id": ajeno.id},
+            )
             db.session.execute(text("DELETE FROM usuarios WHERE id = :id"), {"id": ajeno.id})
             db.session.execute(text("DELETE FROM empresas WHERE id = :id"), {"id": otra.id})
             db.session.commit()

@@ -54,7 +54,7 @@ def index(current_user):
 def show(current_user, asistencia_id):
     try:
         asistencia = get_attendance(current_user, asistencia_id)
-    except (AsistenciaForbiddenError, AsistenciaNotFoundError) as error:
+    except (AsistenciaForbiddenError, AsistenciaNotFoundError, AsistenciaValidationError) as error:
         return _error_response(error)
     return jsonify({"asistencia": asistencia})
 
@@ -97,7 +97,7 @@ def update(current_user, asistencia_id):
 def delete(current_user, asistencia_id):
     try:
         asistencia = delete_attendance(current_user, asistencia_id)
-    except (AsistenciaForbiddenError, AsistenciaNotFoundError) as error:
+    except (AsistenciaForbiddenError, AsistenciaNotFoundError, AsistenciaValidationError) as error:
         return _error_response(error)
     return jsonify(
         {"message": "Asistencia anulada correctamente.", "asistencia": asistencia}

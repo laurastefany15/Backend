@@ -1,6 +1,7 @@
 from flask import Blueprint, jsonify
 
 from controllers.auth_controller import login, register
+from services.acceso_service import perfil_publico
 from services.auth_service import jwt_required
 
 
@@ -13,6 +14,4 @@ auth_bp.add_url_rule("/login", view_func=login, methods=["POST"])
 @auth_bp.get("/me")
 @jwt_required
 def me(current_user):
-    return jsonify(
-        {"user": {"id": current_user.id, "correo": current_user.correo}}
-    )
+    return jsonify({"user": perfil_publico(current_user)})

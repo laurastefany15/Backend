@@ -55,7 +55,11 @@ def index(current_user):
 def show(current_user, movimiento_id):
     try:
         movimiento = get_movement(current_user, movimiento_id)
-    except (MovimientoVacacionesForbiddenError, MovimientoVacacionesNotFoundError) as error:
+    except (
+        MovimientoVacacionesForbiddenError,
+        MovimientoVacacionesNotFoundError,
+        MovimientoVacacionesValidationError,
+    ) as error:
         return _error_response(error)
     return jsonify({"movimiento": movimiento})
 
@@ -108,6 +112,7 @@ def delete(current_user, movimiento_id):
         MovimientoVacacionesConflictError,
         MovimientoVacacionesForbiddenError,
         MovimientoVacacionesNotFoundError,
+        MovimientoVacacionesValidationError,
     ) as error:
         return _error_response(error)
     return jsonify(

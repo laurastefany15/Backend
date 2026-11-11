@@ -17,7 +17,8 @@ from routes.hora_extra_routes import hora_extra_bp
 from routes.incapacidad_routes import incapacidad_bp
 from routes.movimiento_vacaciones_routes import movimiento_vacaciones_bp
 from routes.nomina_routes import nomina_bp
-from routes.usuario_empresa_routes import usuario_empresa_bp
+from routes.superuser_routes import superuser_bp
+from routes.usuario_admin_routes import usuario_admin_bp
 from routes.vacacion_routes import vacacion_bp
 from flask_swagger_ui import get_swaggerui_blueprint
 
@@ -51,7 +52,8 @@ def create_app(test_config=None):
     app.register_blueprint(hora_extra_bp)
     app.register_blueprint(nomina_bp)
     app.register_blueprint(empresa_bp)
-    app.register_blueprint(usuario_empresa_bp)
+    app.register_blueprint(usuario_admin_bp)
+    app.register_blueprint(superuser_bp)
     app.register_blueprint(
         get_swaggerui_blueprint(
             "/apidocs",
@@ -76,7 +78,36 @@ def create_app(test_config=None):
     def index():
         return jsonify({"message": "API de nómina Colombia"})
 
+    _ensure_superuser(app)
+
     return app
+
+
+def _ensure_superuser(app):
+    correo = os.environ.get("SUPERUSER_CORREO", "").strip()
+    password = os.environ.get("SUPERUSER_PASSWORD", "")
+    if not correo or not password:
+        return
+    with app.app_context():
+        from sqlalchemy import inspect
+        from sqlalchemy.exc import OperationalError
+
+        try:
+            inspector = inspect(db.engine)
+            tables = set(inspector.get_table_names())
+            if not {"usuarios", "roles", "usuarios_roles"} <= tables:
+                return
+            columnas = {column["name"] for column in inspector.get_columns("usuarios")}
+        except OperationalError:
+            return
+        if "empresa_id" in columnas or "creado_por_id" not in columnas:
+            return
+        from services.auth_service import AuthValidationError, ensure_superuser_account
+
+        try:
+            ensure_superuser_account(correo, password)
+        except AuthValidationError as error:
+            raise RuntimeError(str(error)) from error
 
 
 app = create_app()

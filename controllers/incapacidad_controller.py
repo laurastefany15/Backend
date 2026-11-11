@@ -67,7 +67,11 @@ def index(current_user):
 def show(current_user, incapacidad_id):
     try:
         incapacidad = get_disability(current_user, incapacidad_id)
-    except (IncapacidadForbiddenError, IncapacidadNotFoundError) as error:
+    except (
+        IncapacidadForbiddenError,
+        IncapacidadNotFoundError,
+        IncapacidadValidationError,
+    ) as error:
         return _error_response(error)
     return jsonify({"incapacidad": incapacidad})
 
@@ -119,7 +123,11 @@ def update(current_user, incapacidad_id):
 def delete(current_user, incapacidad_id):
     try:
         incapacidad = delete_disability(current_user, incapacidad_id)
-    except (IncapacidadForbiddenError, IncapacidadNotFoundError) as error:
+    except (
+        IncapacidadForbiddenError,
+        IncapacidadNotFoundError,
+        IncapacidadValidationError,
+    ) as error:
         return _error_response(error)
     return jsonify(
         {"message": "Incapacidad rechazada correctamente.", "incapacidad": incapacidad}
@@ -129,7 +137,11 @@ def delete(current_user, incapacidad_id):
 def documents_index(current_user, incapacidad_id):
     try:
         documentos = list_documents(current_user, incapacidad_id)
-    except (IncapacidadForbiddenError, IncapacidadNotFoundError) as error:
+    except (
+        IncapacidadForbiddenError,
+        IncapacidadNotFoundError,
+        IncapacidadValidationError,
+    ) as error:
         return _error_response(error)
     return jsonify({"items": documentos})
 
@@ -158,7 +170,11 @@ def documents_upload(current_user, incapacidad_id):
 def documents_show(current_user, incapacidad_id, documento_id):
     try:
         documento = get_document(current_user, incapacidad_id, documento_id)
-    except (IncapacidadForbiddenError, IncapacidadNotFoundError) as error:
+    except (
+        IncapacidadForbiddenError,
+        IncapacidadNotFoundError,
+        IncapacidadValidationError,
+    ) as error:
         return _error_response(error)
     return jsonify({"documento": documento})
 
@@ -166,7 +182,11 @@ def documents_show(current_user, incapacidad_id, documento_id):
 def documents_download(current_user, incapacidad_id, documento_id):
     try:
         path, documento = document_file(current_user, incapacidad_id, documento_id)
-    except (IncapacidadForbiddenError, IncapacidadNotFoundError) as error:
+    except (
+        IncapacidadForbiddenError,
+        IncapacidadNotFoundError,
+        IncapacidadValidationError,
+    ) as error:
         return _error_response(error)
     return send_file(
         path,
@@ -179,6 +199,10 @@ def documents_download(current_user, incapacidad_id, documento_id):
 def documents_delete(current_user, incapacidad_id, documento_id):
     try:
         documento = delete_document(current_user, incapacidad_id, documento_id)
-    except (IncapacidadForbiddenError, IncapacidadNotFoundError) as error:
+    except (
+        IncapacidadForbiddenError,
+        IncapacidadNotFoundError,
+        IncapacidadValidationError,
+    ) as error:
         return _error_response(error)
     return jsonify({"message": "Documento eliminado correctamente.", "documento": documento})

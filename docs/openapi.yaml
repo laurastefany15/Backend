@@ -2,7 +2,13 @@ openapi: 3.0.3
 info:
   title: API de nómina Colombia
   version: 1.0.0
-  description: API para autenticación y operaciones del sistema de nómina.
+  description: >
+    API para autenticación y operaciones del sistema de nómina.
+    El registro público crea un administrador de empresa. Ese administrador crea
+    sus empresas y los usuarios que operan en ellas. Un superusuario, definido
+    con SUPERUSER_CORREO y SUPERUSER_PASSWORD, consulta la información general.
+    Las operaciones de nómina usan la empresa activa del usuario. Si tiene varias,
+    envíe el encabezado X-Empresa-Id.
 servers:
   - url: /
 tags:
@@ -16,6 +22,7 @@ tags:
   - name: Horas extras
   - name: Nómina
   - name: Administración
+  - name: Superusuario
 paths:
   /:
     get:
@@ -35,8 +42,8 @@ paths:
   /auth/register:
     post:
       tags: [Autenticación]
-      summary: Registrar usuario
-      description: Crea una cuenta; la contraseña se almacena como hash.
+      summary: Registrar administrador
+      description: Crea un administrador de empresa con el rol ADMIN. La contraseña se almacena como hash.
       requestBody:
         required: true
         content:
@@ -2618,7 +2625,7 @@ paths:
     get:
       tags: [Administración]
       summary: Listar empresas
-      description: Requiere JWT y el rol ADMIN.
+      description: Requiere JWT y el rol ADMIN. Solo administra las empresas creadas por ese administrador.
       security:
         - bearerAuth: []
       parameters:
@@ -2668,7 +2675,7 @@ paths:
     post:
       tags: [Administración]
       summary: Crear una empresa
-      description: Requiere JWT y el rol ADMIN.
+      description: Requiere JWT y el rol ADMIN. Solo administra las empresas creadas por ese administrador.
       security:
         - bearerAuth: []
       requestBody:
@@ -2719,7 +2726,7 @@ paths:
     get:
       tags: [Administración]
       summary: Consultar una empresa
-      description: Requiere JWT y el rol ADMIN.
+      description: Requiere JWT y el rol ADMIN. Solo administra las empresas creadas por ese administrador.
       security:
         - bearerAuth: []
       responses:
@@ -2754,7 +2761,7 @@ paths:
     put:
       tags: [Administración]
       summary: Reemplazar los datos de una empresa
-      description: Los campos opcionales omitidos se limpian. Requiere JWT y el rol ADMIN.
+      description: Los campos opcionales omitidos se limpian. Requiere JWT y el rol ADMIN. Solo administra las empresas creadas por ese administrador.
       security:
         - bearerAuth: []
       requestBody:
@@ -2803,7 +2810,7 @@ paths:
     patch:
       tags: [Administración]
       summary: Actualizar campos de una empresa
-      description: Solo modifica los campos enviados. Requiere JWT y el rol ADMIN.
+      description: Solo modifica los campos enviados. Requiere JWT y el rol ADMIN. Solo administra las empresas creadas por ese administrador.
       security:
         - bearerAuth: []
       requestBody:
@@ -2852,7 +2859,7 @@ paths:
     delete:
       tags: [Administración]
       summary: Desactivar una empresa
-      description: Eliminación lógica. La empresa permanece para conservar usuarios y nómina. Requiere JWT y el rol ADMIN.
+      description: Eliminación lógica. La empresa permanece para conservar usuarios y nómina. Requiere JWT y el rol ADMIN. Solo administra las empresas creadas por ese administrador.
       security:
         - bearerAuth: []
       responses:
@@ -2880,27 +2887,27 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
-  /admin/usuarios/{usuario_id}/empresa:
-    parameters:
-      - name: usuario_id
-        in: path
-        required: true
-        schema:
-          type: integer
-          minimum: 1
+  /admin/usuarios:
     get:
       tags: [Administración]
-      summary: Consultar la empresa asociada a un usuario
-      description: Requiere JWT y el rol ADMIN.
+      summary: Listar usuarios creados por el administrador
+      description: Requiere JWT y el rol ADMIN. Solo incluye usuarios creados por la cuenta autenticada.
       security:
         - bearerAuth: []
+      parameters:
+        - name: page
+          in: query
+          schema: {type: integer, minimum: 1, default: 1}
+        - name: per_page
+          in: query
+          schema: {type: integer, minimum: 1, maximum: 100, default: 20}
       responses:
         "200":
-          description: Asociación consultada; empresa será null si no hay asociación.
+          description: Listado paginado.
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/UsuarioEmpresa"
+                $ref: "#/components/schemas/ListaUsuarios"
         "401":
           description: Token ausente, inválido o expirado.
           content:
@@ -2909,6 +2916,380 @@ paths:
                 $ref: "#/components/schemas/Error"
         "403":
           description: El usuario autenticado no tiene el rol ADMIN.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+    post:
+      tags: [Administración]
+      summary: Crear un usuario de las empresas del administrador
+      description: El usuario queda con el rol USUARIO y solo puede operar en empresa_ids. Esas empresas deben estar activas y pertenecer al administrador.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CrearUsuario"
+      responses:
+        "201":
+          description: Usuario creado.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RespuestaUsuarioAdmin"
+        "400":
+          description: Cuerpo inválido.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "401":
+          description: Token ausente, inválido o expirado.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: Alguna empresa no pertenece al administrador o el rol no es ADMIN.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "409":
+          description: El correo ya está registrado.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+  /admin/usuarios/{usuario_id}:
+    parameters:
+      - name: usuario_id
+        in: path
+        required: true
+        schema: {type: integer, minimum: 1}
+    get:
+      tags: [Administración]
+      summary: Consultar un usuario creado por el administrador
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Usuario consultado.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [usuario]
+                properties:
+                  usuario:
+                    $ref: "#/components/schemas/Usuario"
+        "401":
+          description: Token ausente, inválido o expirado.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: El usuario autenticado no tiene el rol ADMIN.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: El usuario no existe o no fue creado por este administrador.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+    patch:
+      tags: [Administración]
+      summary: Activar o desactivar un usuario
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [activo]
+              properties:
+                activo:
+                  type: boolean
+      responses:
+        "200":
+          description: Estado actualizado.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RespuestaUsuarioAdmin"
+        "400":
+          description: Cuerpo inválido.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "401":
+          description: Token ausente, inválido o expirado.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: El usuario autenticado no tiene el rol ADMIN.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: El usuario no existe o no fue creado por este administrador.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+  /admin/usuarios/{usuario_id}/empresas:
+    parameters:
+      - name: usuario_id
+        in: path
+        required: true
+        schema: {type: integer, minimum: 1}
+    put:
+      tags: [Administración]
+      summary: Reemplazar las empresas de un usuario
+      description: empresa_ids puede ser una lista vacía para quitar el acceso operativo.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [empresa_ids]
+              properties:
+                empresa_ids:
+                  type: array
+                  items: {type: integer, minimum: 1}
+      responses:
+        "200":
+          description: Empresas actualizadas.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RespuestaUsuarioAdmin"
+        "400":
+          description: Cuerpo inválido.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "401":
+          description: Token ausente, inválido o expirado.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: Alguna empresa no pertenece al administrador.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: El usuario no existe o no fue creado por este administrador.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "409":
+          description: El usuario está inactivo.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+  /superuser/resumen:
+    get:
+      tags: [Superusuario]
+      summary: Totales generales del aplicativo
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Conteos de empresas, usuarios, empleados y nóminas.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ResumenAplicacion"
+        "401":
+          description: Token ausente, inválido o expirado.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: El usuario autenticado no tiene el rol SUPERUSER.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+  /superuser/empresas:
+    get:
+      tags: [Superusuario]
+      summary: Listar todas las empresas
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: page
+          in: query
+          schema: {type: integer, minimum: 1, default: 1}
+        - name: per_page
+          in: query
+          schema: {type: integer, minimum: 1, maximum: 100, default: 20}
+        - name: activa
+          in: query
+          schema: {type: string, enum: ["true", "false"]}
+      responses:
+        "200":
+          description: Empresas con propietario y conteos.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ListaEmpresasGenerales"
+        "401":
+          description: Token ausente, inválido o expirado.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: El usuario autenticado no tiene el rol SUPERUSER.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+  /superuser/empresas/{empresa_id}:
+    parameters:
+      - name: empresa_id
+        in: path
+        required: true
+        schema: {type: integer, minimum: 1}
+    get:
+      tags: [Superusuario]
+      summary: Consultar cualquier empresa
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Empresa consultada.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [empresa]
+                properties:
+                  empresa:
+                    $ref: "#/components/schemas/EmpresaGeneral"
+        "401":
+          description: Token ausente, inválido o expirado.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: El usuario autenticado no tiene el rol SUPERUSER.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: Empresa no encontrada.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+  /superuser/usuarios:
+    get:
+      tags: [Superusuario]
+      summary: Listar todos los usuarios
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: page
+          in: query
+          schema: {type: integer, minimum: 1, default: 1}
+        - name: per_page
+          in: query
+          schema: {type: integer, minimum: 1, maximum: 100, default: 20}
+      responses:
+        "200":
+          description: Usuarios con roles, empresas y quién los creó.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ListaUsuariosDetalle"
+        "401":
+          description: Token ausente, inválido o expirado.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: El usuario autenticado no tiene el rol SUPERUSER.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+  /superuser/usuarios/{usuario_id}:
+    parameters:
+      - name: usuario_id
+        in: path
+        required: true
+        schema: {type: integer, minimum: 1}
+    patch:
+      tags: [Superusuario]
+      summary: Activar o desactivar una cuenta
+      description: No cambia el estado de un superusuario ni de la propia cuenta.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [activo]
+              properties:
+                activo:
+                  type: boolean
+      responses:
+        "200":
+          description: Estado actualizado.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [usuario]
+                properties:
+                  message:
+                    type: string
+                  usuario:
+                    $ref: "#/components/schemas/UsuarioDetalle"
+        "400":
+          description: Cuerpo inválido.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "401":
+          description: Token ausente, inválido o expirado.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: El usuario autenticado no tiene el rol SUPERUSER.
           content:
             application/json:
               schema:
@@ -2919,131 +3300,8 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
-    post:
-      tags: [Administración]
-      summary: Asociar una empresa a un usuario sin asociación previa
-      description: Solo permite crear la asociación cuando el usuario aún no tiene empresa.
-      security:
-        - bearerAuth: []
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/AsignacionEmpresa"
-      responses:
-        "201":
-          description: Asociación creada.
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/RespuestaUsuarioEmpresa"
-        "400":
-          description: Cuerpo inválido o empresa_id no es un entero positivo.
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Error"
-        "401":
-          description: Token ausente, inválido o expirado.
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Error"
-        "403":
-          description: El usuario autenticado no tiene el rol ADMIN.
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Error"
-        "404":
-          description: Usuario o empresa no encontrado.
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Error"
         "409":
-          description: El usuario ya tiene empresa, está inactivo o la empresa está inactiva.
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Error"
-    put:
-      tags: [Administración]
-      summary: Asignar o cambiar la empresa de un usuario
-      description: Requiere JWT, rol ADMIN y una empresa activa.
-      security:
-        - bearerAuth: []
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/AsignacionEmpresa"
-      responses:
-        "200":
-          description: Asociación actualizada.
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/RespuestaUsuarioEmpresa"
-        "400":
-          description: Cuerpo inválido o empresa_id no es un entero positivo.
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Error"
-        "401":
-          description: Token ausente, inválido o expirado.
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Error"
-        "403":
-          description: El usuario autenticado no tiene el rol ADMIN.
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Error"
-        "404":
-          description: Usuario o empresa no encontrado.
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Error"
-        "409":
-          description: El usuario está inactivo o la empresa está inactiva.
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Error"
-    delete:
-      tags: [Administración]
-      summary: Desvincular empresa de un usuario
-      description: Deja el campo usuarios.empresa_id en null. Requiere JWT y rol ADMIN.
-      security:
-        - bearerAuth: []
-      responses:
-        "200":
-          description: Asociación eliminada.
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/RespuestaUsuarioEmpresa"
-        "401":
-          description: Token ausente, inválido o expirado.
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Error"
-        "403":
-          description: El usuario autenticado no tiene el rol ADMIN.
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Error"
-        "404":
-          description: Usuario no encontrado o sin empresa asociada.
+          description: La cuenta es un superusuario o es la propia.
           content:
             application/json:
               schema:
@@ -3068,7 +3326,7 @@ components:
           schema:
             $ref: "#/components/schemas/Error"
     SinEmpresa:
-      description: El usuario no está asociado a una empresa activa.
+      description: El usuario no está asociado a una empresa activa, o el encabezado X-Empresa-Id no corresponde a una empresa disponible.
       content:
         application/json:
           schema:
@@ -3109,7 +3367,144 @@ components:
         correo:
           type: string
           format: email
-          example: usuario@example.com
+          example: admin@example.com
+        activo:
+          type: boolean
+        roles:
+          type: array
+          items:
+            type: string
+          example: [ADMIN]
+        empresas:
+          type: array
+          items:
+            type: object
+            required: [id, nit, razon_social, activa]
+            properties:
+              id:
+                type: integer
+              nit:
+                type: string
+              razon_social:
+                type: string
+              activa:
+                type: boolean
+    CrearUsuario:
+      type: object
+      required: [correo, password, empresa_ids]
+      properties:
+        correo:
+          type: string
+          format: email
+          maxLength: 150
+        password:
+          type: string
+          format: password
+          minLength: 8
+          maxLength: 128
+        empresa_ids:
+          type: array
+          minItems: 1
+          items:
+            type: integer
+            minimum: 1
+    ListaUsuarios:
+      type: object
+      required: [items, pagination]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/Usuario"
+        pagination:
+          $ref: "#/components/schemas/Paginacion"
+    RespuestaUsuarioAdmin:
+      type: object
+      required: [usuario]
+      properties:
+        message:
+          type: string
+        usuario:
+          $ref: "#/components/schemas/Usuario"
+    UsuarioDetalle:
+      allOf:
+        - $ref: "#/components/schemas/Usuario"
+        - type: object
+          properties:
+            creado_por:
+              type: object
+              nullable: true
+              properties:
+                id:
+                  type: integer
+                correo:
+                  type: string
+                  format: email
+    ListaUsuariosDetalle:
+      type: object
+      required: [items, pagination]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/UsuarioDetalle"
+        pagination:
+          $ref: "#/components/schemas/Paginacion"
+    ResumenAplicacion:
+      type: object
+      required: [empresas, empresas_activas, usuarios, usuarios_activos, empleados, nominas]
+      properties:
+        empresas:
+          type: integer
+        empresas_activas:
+          type: integer
+        usuarios:
+          type: integer
+        usuarios_activos:
+          type: integer
+        empleados:
+          type: integer
+        nominas:
+          type: integer
+    EmpresaGeneral:
+      allOf:
+        - $ref: "#/components/schemas/Empresa"
+        - type: object
+          properties:
+            propietario:
+              type: object
+              nullable: true
+              properties:
+                id:
+                  type: integer
+                correo:
+                  type: string
+            usuarios:
+              type: integer
+            empleados:
+              type: integer
+    ListaEmpresasGenerales:
+      type: object
+      required: [items, pagination]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/EmpresaGeneral"
+        pagination:
+          $ref: "#/components/schemas/Paginacion"
+    Paginacion:
+      type: object
+      required: [page, per_page, total, pages]
+      properties:
+        page:
+          type: integer
+        per_page:
+          type: integer
+        total:
+          type: integer
+        pages:
+          type: integer
     RespuestaLogin:
       type: object
       required: [access_token, token_type, expires_in, user]
@@ -3514,6 +3909,10 @@ components:
             id:
               type: integer
               readOnly: true
+            propietario_id:
+              type: integer
+              nullable: true
+              readOnly: true
     ListaEmpresas:
       type: object
       required: [items, pagination]
@@ -3832,18 +4231,6 @@ components:
           type: string
         incapacidad:
           $ref: "#/components/schemas/Incapacidad"
-    Paginacion:
-      type: object
-      required: [page, per_page, total, pages]
-      properties:
-        page:
-          type: integer
-        per_page:
-          type: integer
-        total:
-          type: integer
-        pages:
-          type: integer
     HoraExtraInput:
       type: object
       required: [contrato_id, tipo_codigo, fecha, cantidad_horas]

@@ -5,7 +5,8 @@ from sqlalchemy import func
 from sqlalchemy.exc import IntegrityError
 
 from extensions import db
-from models import Contrato, Empleado, Empresa, MovimientoVacaciones, Vacacion
+from models import Contrato, Empleado, MovimientoVacaciones, Vacacion
+from services.acceso_service import empresa_id_or_raise
 
 
 TIPOS = {"CAUSACION", "DISFRUTE", "COMPENSACION", "AJUSTE"}
@@ -34,18 +35,11 @@ class MovimientoVacacionesConflictError(ValueError):
 
 
 def _empresa_id_for_user(current_user):
-    empresa_id = current_user.empresa_id
-    if empresa_id is None:
-        raise MovimientoVacacionesForbiddenError(
-            "El usuario no está asociado a una empresa."
-        )
-
-    empresa = db.session.get(Empresa, empresa_id)
-    if empresa is None or not empresa.activa:
-        raise MovimientoVacacionesForbiddenError(
-            "La empresa del usuario no está disponible."
-        )
-    return empresa_id
+    return empresa_id_or_raise(
+        current_user,
+        MovimientoVacacionesForbiddenError,
+        MovimientoVacacionesValidationError,
+    )
 
 
 def _parse_date(value, field):

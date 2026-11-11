@@ -24,7 +24,7 @@ def _error_response(error):
     return jsonify({"error": str(error)}), status_code
 
 
-def index():
+def index(current_user):
     try:
         page = int(request.args.get("page", "1"))
         per_page = int(request.args.get("per_page", "20"))
@@ -33,6 +33,7 @@ def index():
 
     try:
         result = list_companies(
+            current_user,
             page=page,
             per_page=per_page,
             activa=request.args.get("activa"),
@@ -42,25 +43,26 @@ def index():
     return jsonify(result)
 
 
-def show(empresa_id):
+def show(current_user, empresa_id):
     try:
-        empresa = get_company(empresa_id)
+        empresa = get_company(current_user, empresa_id)
     except EmpresaNotFoundError as error:
         return _error_response(error)
     return jsonify({"empresa": empresa})
 
 
-def create():
+def create(current_user):
     try:
-        empresa = create_company(request.get_json(silent=True))
+        empresa = create_company(current_user, request.get_json(silent=True))
     except (EmpresaConflictError, EmpresaValidationError) as error:
         return _error_response(error)
     return jsonify({"message": "Empresa creada correctamente.", "empresa": empresa}), 201
 
 
-def update(empresa_id):
+def update(current_user, empresa_id):
     try:
         empresa = update_company(
+            current_user,
             empresa_id,
             request.get_json(silent=True),
             replace=request.method == "PUT",
@@ -76,9 +78,9 @@ def update(empresa_id):
     )
 
 
-def delete(empresa_id):
+def delete(current_user, empresa_id):
     try:
-        empresa = delete_company(empresa_id)
+        empresa = delete_company(current_user, empresa_id)
     except EmpresaNotFoundError as error:
         return _error_response(error)
     return jsonify(

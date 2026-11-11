@@ -81,7 +81,7 @@ def balances(current_user):
 def show(current_user, vacacion_id):
     try:
         vacacion = get_vacation(current_user, vacacion_id)
-    except (VacacionForbiddenError, VacacionNotFoundError) as error:
+    except (VacacionForbiddenError, VacacionNotFoundError, VacacionValidationError) as error:
         return _error_response(error)
     return jsonify({"vacacion": vacacion})
 
@@ -122,6 +122,6 @@ def update(current_user, vacacion_id):
 def delete(current_user, vacacion_id):
     try:
         vacacion = delete_vacation(current_user, vacacion_id)
-    except (VacacionForbiddenError, VacacionNotFoundError) as error:
+    except (VacacionForbiddenError, VacacionNotFoundError, VacacionValidationError) as error:
         return _error_response(error)
     return jsonify({"message": "Vacación cancelada correctamente.", "vacacion": vacacion})

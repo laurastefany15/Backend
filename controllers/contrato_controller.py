@@ -54,7 +54,7 @@ def index(current_user):
 def show(current_user, contrato_id):
     try:
         contrato = get_contract(current_user, contrato_id)
-    except (ContratoForbiddenError, ContratoNotFoundError) as error:
+    except (ContratoForbiddenError, ContratoNotFoundError, ContratoValidationError) as error:
         return _error_response(error)
     return jsonify({"contrato": contrato})
 
@@ -97,7 +97,7 @@ def update(current_user, contrato_id):
 def delete(current_user, contrato_id):
     try:
         contrato = delete_contract(current_user, contrato_id)
-    except (ContratoForbiddenError, ContratoNotFoundError) as error:
+    except (ContratoForbiddenError, ContratoNotFoundError, ContratoValidationError) as error:
         return _error_response(error)
     return jsonify(
         {"message": "Contrato terminado correctamente.", "contrato": contrato}

@@ -1,7 +1,7 @@
 from sqlalchemy.exc import IntegrityError
 
 from extensions import db
-from models import Empresa
+from models import Empresa, UsuarioEmpresa
 
 
 REQUIRED_FIELDS = {"nit", "razon_social"}
@@ -87,6 +87,7 @@ def _validate_payload(data, partial=False):
 def _serialize_empresa(empresa):
     return {
         "id": empresa.id,
+        "propietario_id": empresa.propietario_id,
         "nit": empresa.nit,
         "razon_social": empresa.razon_social,
         "direccion": empresa.direccion,
@@ -96,9 +97,9 @@ def _serialize_empresa(empresa):
     }
 
 
-def _find_empresa(empresa_id):
+def _owned_company(current_user, empresa_id):
     empresa = db.session.get(Empresa, empresa_id)
-    if empresa is None:
+    if empresa is None or empresa.propietario_id != current_user.id:
         raise EmpresaNotFoundError("Empresa no encontrada.")
     return empresa
 
@@ -134,13 +135,13 @@ def _parse_activa(activa):
     raise EmpresaValidationError("activa debe ser true o false.")
 
 
-def list_companies(page=1, per_page=20, activa=None):
+def list_companies(current_user, page=1, per_page=20, activa=None):
     if page < 1:
         raise EmpresaValidationError("page debe ser mayor que cero.")
     if per_page < 1 or per_page > 100:
         raise EmpresaValidationError("per_page debe estar entre 1 y 100.")
 
-    query = Empresa.query
+    query = Empresa.query.filter_by(propietario_id=current_user.id)
     parsed_activa = _parse_activa(activa)
     if parsed_activa is not None:
         query = query.filter_by(activa=parsed_activa)
@@ -160,20 +161,28 @@ def list_companies(page=1, per_page=20, activa=None):
     }
 
 
-def get_company(empresa_id):
-    return _serialize_empresa(_find_empresa(empresa_id))
+def get_company(current_user, empresa_id):
+    return _serialize_empresa(_owned_company(current_user, empresa_id))
 
 
-def create_company(data):
+def create_company(current_user, data):
     values = _validate_payload(data)
-    empresa = Empresa(**values)
+    empresa = Empresa(propietario_id=current_user.id, **values)
     db.session.add(empresa)
+    try:
+        db.session.flush()
+    except IntegrityError as error:
+        db.session.rollback()
+        raise EmpresaConflictError("Ya existe una empresa con ese NIT.") from error
+    db.session.add(
+        UsuarioEmpresa(usuario_id=current_user.id, empresa_id=empresa.id)
+    )
     _commit_empresa(empresa)
     return _serialize_empresa(empresa)
 
 
-def update_company(empresa_id, data, replace=False):
-    empresa = _find_empresa(empresa_id)
+def update_company(current_user, empresa_id, data, replace=False):
+    empresa = _owned_company(current_user, empresa_id)
     values = _validate_payload(data, partial=not replace)
     if replace:
         for field in WRITABLE_FIELDS - REQUIRED_FIELDS - {"activa"}:
@@ -186,8 +195,8 @@ def update_company(empresa_id, data, replace=False):
     return _serialize_empresa(empresa)
 
 
-def delete_company(empresa_id):
-    empresa = _find_empresa(empresa_id)
+def delete_company(current_user, empresa_id):
+    empresa = _owned_company(current_user, empresa_id)
     empresa.activa = False
     _commit_empresa(empresa)
     return _serialize_empresa(empresa)

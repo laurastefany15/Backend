@@ -3,7 +3,8 @@ from datetime import datetime, timezone
 from sqlalchemy.exc import IntegrityError
 
 from extensions import db
-from models import Asistencia, Contrato, Empleado, Empresa
+from models import Asistencia, Contrato, Empleado
+from services.acceso_service import empresa_id_or_raise
 
 
 ESTADOS = {"REGISTRADA", "VALIDADA", "ANULADA"}
@@ -29,14 +30,11 @@ class AsistenciaConflictError(ValueError):
 
 
 def _empresa_id_for_user(current_user):
-    empresa_id = current_user.empresa_id
-    if empresa_id is None:
-        raise AsistenciaForbiddenError("El usuario no está asociado a una empresa.")
-
-    empresa = db.session.get(Empresa, empresa_id)
-    if empresa is None or not empresa.activa:
-        raise AsistenciaForbiddenError("La empresa del usuario no está disponible.")
-    return empresa_id
+    return empresa_id_or_raise(
+        current_user,
+        AsistenciaForbiddenError,
+        AsistenciaValidationError,
+    )
 
 
 def _parse_datetime(value, field, required=False):
