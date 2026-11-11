@@ -4,7 +4,8 @@ from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
 from sqlalchemy.exc import IntegrityError
 
 from extensions import db
-from models import Contrato, Empleado, Empresa, Incapacidad, Vacacion
+from models import Contrato, Empleado, Incapacidad, Vacacion
+from services.acceso_service import empresa_id_or_raise
 
 
 TIPOS = {
@@ -50,14 +51,11 @@ class IncapacidadConflictError(ValueError):
 
 
 def _empresa_id_for_user(current_user):
-    empresa_id = current_user.empresa_id
-    if empresa_id is None:
-        raise IncapacidadForbiddenError("El usuario no está asociado a una empresa.")
-
-    empresa = db.session.get(Empresa, empresa_id)
-    if empresa is None or not empresa.activa:
-        raise IncapacidadForbiddenError("La empresa del usuario no está disponible.")
-    return empresa_id
+    return empresa_id_or_raise(
+        current_user,
+        IncapacidadForbiddenError,
+        IncapacidadValidationError,
+    )
 
 
 def _parse_date(value, field, required=False):

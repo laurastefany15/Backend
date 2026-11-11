@@ -4,7 +4,8 @@ from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
 from sqlalchemy.exc import IntegrityError
 
 from extensions import db
-from models import Contrato, Empleado, Empresa
+from models import Contrato, Empleado
+from services.acceso_service import empresa_id_or_raise
 
 
 TIPOS_CONTRATO = {"INDEFINIDO", "FIJO", "OBRA_LABOR", "APRENDIZAJE", "OTRO"}
@@ -44,14 +45,11 @@ class ContratoConflictError(ValueError):
 
 
 def _empresa_id_for_user(current_user):
-    empresa_id = current_user.empresa_id
-    if empresa_id is None:
-        raise ContratoForbiddenError("El usuario no está asociado a una empresa.")
-
-    empresa = db.session.get(Empresa, empresa_id)
-    if empresa is None or not empresa.activa:
-        raise ContratoForbiddenError("La empresa del usuario no está disponible.")
-    return empresa_id
+    return empresa_id_or_raise(
+        current_user,
+        ContratoForbiddenError,
+        ContratoValidationError,
+    )
 
 
 def _require_text(value, field, limit):

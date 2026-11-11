@@ -3,7 +3,8 @@ from datetime import date
 from sqlalchemy.exc import IntegrityError
 
 from extensions import db
-from models import Empleado, Empresa
+from models import Empleado
+from services.acceso_service import empresa_id_or_raise
 
 
 REQUIRED_FIELDS = {
@@ -54,18 +55,11 @@ class EmpleadoConflictError(ValueError):
 
 
 def _empresa_id_for_user(current_user):
-    empresa_id = current_user.empresa_id
-    if empresa_id is None:
-        raise EmpleadoForbiddenError(
-            "El usuario no está asociado a una empresa."
-        )
-
-    empresa = db.session.get(Empresa, empresa_id)
-    if empresa is None or not empresa.activa:
-        raise EmpleadoForbiddenError(
-            "La empresa del usuario no está disponible."
-        )
-    return empresa_id
+    return empresa_id_or_raise(
+        current_user,
+        EmpleadoForbiddenError,
+        EmpleadoValidationError,
+    )
 
 
 def _validate_payload(data, partial=False):

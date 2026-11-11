@@ -27,6 +27,7 @@ from models import (
     TipoRecargo,
     Vacacion,
 )
+from services.acceso_service import empresa_id_or_raise
 
 
 MONEY = Decimal("0.01")
@@ -91,13 +92,11 @@ def _dec(value):
 
 
 def _empresa_id_for_user(current_user):
-    empresa_id = current_user.empresa_id
-    if empresa_id is None:
-        raise NominaForbiddenError("El usuario no está asociado a una empresa.")
-    empresa = db.session.get(Empresa, empresa_id)
-    if empresa is None or not empresa.activa:
-        raise NominaForbiddenError("La empresa del usuario no está disponible.")
-    return empresa_id
+    return empresa_id_or_raise(
+        current_user,
+        NominaForbiddenError,
+        NominaValidationError,
+    )
 
 
 def quincena_bounds(anio, mes, quincena):

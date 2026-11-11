@@ -4,7 +4,8 @@ from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
 from sqlalchemy.exc import IntegrityError
 
 from extensions import db
-from models import Asistencia, Contrato, Empleado, Empresa, HoraExtra, TipoRecargo
+from models import Asistencia, Contrato, Empleado, HoraExtra, TipoRecargo
+from services.acceso_service import empresa_id_or_raise
 
 
 ESTADOS_EDITABLES = {"PENDIENTE", "APROBADA", "RECHAZADA"}
@@ -32,14 +33,11 @@ class HoraExtraConflictError(ValueError):
 
 
 def _empresa_id_for_user(current_user):
-    empresa_id = current_user.empresa_id
-    if empresa_id is None:
-        raise HoraExtraForbiddenError("El usuario no está asociado a una empresa.")
-
-    empresa = db.session.get(Empresa, empresa_id)
-    if empresa is None or not empresa.activa:
-        raise HoraExtraForbiddenError("La empresa del usuario no está disponible.")
-    return empresa_id
+    return empresa_id_or_raise(
+        current_user,
+        HoraExtraForbiddenError,
+        HoraExtraValidationError,
+    )
 
 
 def _parse_date(value):

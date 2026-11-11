@@ -1,5 +1,6 @@
 from flask import current_app, jsonify, request
 
+from services.acceso_service import perfil_publico
 from services.auth_service import (
     AuthValidationError,
     EmailAlreadyRegisteredError,
@@ -24,7 +25,7 @@ def register():
         jsonify(
             {
                 "message": "Usuario registrado correctamente.",
-                "user": {"id": user.id, "correo": user.correo},
+                "user": perfil_publico(user),
             }
         ),
         201,
@@ -50,6 +51,6 @@ def login():
             "access_token": token,
             "token_type": "Bearer",
             "expires_in": current_app.config["JWT_ACCESS_TOKEN_EXPIRES"],
-            "user": {"id": user.id, "correo": user.correo},
+            "user": perfil_publico(user),
         }
     )

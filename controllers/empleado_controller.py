@@ -49,7 +49,7 @@ def index(current_user):
 def show(current_user, empleado_id):
     try:
         empleado = get_employee(current_user, empleado_id)
-    except (EmpleadoForbiddenError, EmpleadoNotFoundError) as error:
+    except (EmpleadoForbiddenError, EmpleadoNotFoundError, EmpleadoValidationError) as error:
         return _error_response(error)
     return jsonify({"empleado": empleado})
 
@@ -88,7 +88,7 @@ def update(current_user, empleado_id):
 def delete(current_user, empleado_id):
     try:
         empleado = delete_employee(current_user, empleado_id)
-    except (EmpleadoForbiddenError, EmpleadoNotFoundError) as error:
+    except (EmpleadoForbiddenError, EmpleadoNotFoundError, EmpleadoValidationError) as error:
         return _error_response(error)
     return jsonify(
         {

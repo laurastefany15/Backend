@@ -23,18 +23,52 @@ expiran en una hora.
 - Interfaz interactiva: http://127.0.0.1:5000/apidocs/
 - Especificación OpenAPI: http://127.0.0.1:5000/openapi.yaml
 
-## Autenticación
+## Autenticación y acceso
 
-- `POST /auth/register` recibe `{"correo": "usuario@example.com", "password": "una-clave-segura"}`.
-- `POST /auth/login` recibe las mismas propiedades y devuelve un token Bearer.
-- `GET /auth/me` requiere el encabezado `Authorization: Bearer <access_token>`.
+Hay tres tipos de cuenta:
+
+- **Superusuario**: administra el software y consulta la información general. No se registra por la API. Defina `SUPERUSER_CORREO` y `SUPERUSER_PASSWORD` en `.env` y reinicie la aplicación; si el correo no existe, se crea la cuenta y se le asigna el rol `SUPERUSER`.
+- **Administrador**: se crea con `POST /auth/register`. Puede crear sus empresas, sus empleados y los usuarios que operan en esas empresas.
+- **Usuario**: lo crea un administrador. Entra con `POST /auth/login` y solo opera en las empresas que ese administrador le relacionó.
+
+`POST /auth/register` y `POST /auth/login` reciben `{"correo": "admin@example.com", "password": "una-clave-segura"}`. El login devuelve un token Bearer de una hora. `GET /auth/me` requiere `Authorization: Bearer <access_token>` y devuelve roles y empresas.
+
+Las rutas de empleados, contratos, asistencias, vacaciones, incapacidades, horas extras y nómina usan la empresa activa del usuario. Si tiene una sola empresa activa, se usa esa. Si tiene varias, la petición debe incluir el encabezado `X-Empresa-Id`.
+
+## Empresas del administrador
+
+El CRUD de empresas requiere JWT y el rol `ADMIN`. Cada administrador solo ve y modifica las empresas que creó:
+
+- `GET /admin/empresas?page=1&per_page=20&activa=true`: lista sus empresas.
+- `POST /admin/empresas`: crea una empresa; requiere `nit` y `razon_social`. El administrador queda como propietario y con acceso operativo.
+- `GET /admin/empresas/<id>`, `PUT`, `PATCH` y `DELETE`: consultan, reemplazan, actualizan o desactivan una empresa propia.
+
+El cuerpo acepta `nit`, `razon_social`, `direccion`, `telefono`, `correo` y `activa`. El NIT es único. Una empresa inactiva no admite operación ni nuevas relaciones.
+
+## Usuarios creados por el administrador
+
+Estas rutas requieren JWT y el rol `ADMIN`:
+
+- `GET /admin/usuarios`: lista los usuarios creados por el administrador autenticado.
+- `POST /admin/usuarios`: crea un usuario con `correo`, `password` y `empresa_ids`. Las empresas deben estar activas y ser de su propiedad. El usuario recibe el rol `USUARIO`.
+- `GET /admin/usuarios/<id>`: consulta uno de esos usuarios.
+- `PUT /admin/usuarios/<id>/empresas`: reemplaza las empresas relacionadas. `empresa_ids` puede quedar vacío para quitar el acceso.
+- `PATCH /admin/usuarios/<id>`: activa o desactiva la cuenta con `{"activo": true}`.
+
+## Información general del superusuario
+
+Estas rutas requieren JWT y el rol `SUPERUSER`:
+
+- `GET /superuser/resumen`: totales de empresas, usuarios, empleados y nóminas.
+- `GET /superuser/empresas` y `GET /superuser/empresas/<id>`: empresas con su propietario y conteos.
+- `GET /superuser/usuarios`: usuarios, roles y empresas relacionadas.
+- `PATCH /superuser/usuarios/<id>`: activa o desactiva una cuenta que no sea superusuario.
 
 ## Empleados
 
-Todas las rutas `/empleados` requieren JWT y limitan el acceso a la empresa
-asociada al usuario. Los usuarios que no tengan `empresa_id` asignado reciben
-HTTP 403; asigna la empresa desde el proceso administrativo antes de usar estas
-rutas.
+Todas las rutas `/empleados` requieren JWT y limitan el acceso a una empresa
+relacionada con el usuario. Si no tiene una empresa activa recibe HTTP 403. Si
+tiene varias, envíe `X-Empresa-Id`.
 
 - `GET /empleados?page=1&per_page=20&estado=ACTIVO`: lista empleados paginados.
 - `POST /empleados`: crea un empleado; requiere `tipo_documento`,
@@ -46,8 +80,8 @@ rutas.
   preservar contratos e historial de nómina.
 
 El cuerpo acepta los campos definidos por el modelo `Empleado`, excepto
-`id`, `empresa_id` y `creado_en`; la empresa se determina desde el usuario
-autenticado. Swagger contiene los esquemas y respuestas detallados.
+`id`, `empresa_id` y `creado_en`; la empresa se determina desde el acceso del
+usuario autenticado. Swagger contiene los esquemas y respuestas detallados.
 
 ## Contratos
 
@@ -235,54 +269,9 @@ Al aprobar, las horas extras pasan a `LIQUIDADA` y baja el saldo de las
 deducciones; al anular una nómina aprobada se revierte. Si las novedades cambian
 después de generar la nómina, la aprobación pide volver a generarla.
 
-## Empresas
+## Empresas del administrador
 
-El CRUD de empresas está en rutas protegidas que requieren JWT y el rol `ADMIN`:
-
-- `GET /admin/empresas?page=1&per_page=20&activa=true`: lista empresas paginadas.
-- `POST /admin/empresas`: crea una empresa; requiere `nit` y `razon_social`.
-- `GET /admin/empresas/<id>`: consulta una empresa.
-- `PUT /admin/empresas/<id>`: reemplaza los datos; los campos opcionales omitidos se limpian.
-- `PATCH /admin/empresas/<id>`: actualiza solo los campos enviados.
-- `DELETE /admin/empresas/<id>`: desactiva la empresa (eliminación lógica).
-
-El cuerpo acepta `nit`, `razon_social`, `direccion`, `telefono`, `correo` y `activa`.
-El NIT es único. Una empresa inactiva no se puede asignar a un usuario.
-
-## Asociación de usuarios con empresas
-
-La administración de la asociación `usuarios.empresa_id` se realiza con rutas
-protegidas que requieren JWT y el rol `ADMIN`:
-
-- `GET /admin/usuarios/<usuario_id>/empresa`: consulta la asociación actual.
-- `POST /admin/usuarios/<usuario_id>/empresa`: asocia una empresa si aún no
-  existe una asociación.
-- `PUT /admin/usuarios/<usuario_id>/empresa`: establece o cambia la empresa.
-- `DELETE /admin/usuarios/<usuario_id>/empresa`: elimina la asociación y deja
-  `empresa_id` en `null`.
-
-Los cuerpos de POST y PUT tienen la forma `{"empresa_id": 3}`. La empresa debe
-existir y estar activa; el usuario debe existir y estar activo. Swagger incluye
-los códigos de respuesta y ejemplos.
-
-Para aprovisionar el primer administrador, un operador debe asignar el rol
-`ADMIN` manualmente una sola vez (el rol se crea con las migraciones). Después,
-los cambios de asociación se pueden hacer desde Swagger con el token de ese
-administrador. Por ejemplo, usando SQLite:
-
-```sql
-INSERT INTO usuarios_roles (usuario_id, rol_id)
-SELECT u.id, r.id
-FROM usuarios AS u
-CROSS JOIN roles AS r
-WHERE u.correo = 'admin@example.com'
-  AND r.codigo = 'ADMIN'
-  AND NOT EXISTS (
-    SELECT 1
-    FROM usuarios_roles AS ur
-    WHERE ur.usuario_id = u.id AND ur.rol_id = r.id
-  );
-```
+El CRUD de empresas requiere JWT y el rol `ADMIN`. Cada administrador solo ve y modifica las empresas que creó. El detalle de las rutas está en la sección de acceso, más arriba. Una empresa inactiva no admite operación ni nuevas relaciones de usuarios.
 
 ## Estructura
 

@@ -1,5 +1,6 @@
 from sqlalchemy import (
     Boolean,
+    ForeignKey,
     Integer,
     String,
     Text,
@@ -13,6 +14,7 @@ class Empresa(db.Model):
     __tablename__ = "empresas"
 
     id = db.Column(Integer, primary_key=True)
+    propietario_id = db.Column(ForeignKey("usuarios.id"))
     nit = db.Column(String(30), nullable=False, unique=True)
     razon_social = db.Column(String(200), nullable=False)
     direccion = db.Column(Text)

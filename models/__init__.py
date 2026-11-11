@@ -1,6 +1,7 @@
 from .empresa import Empresa
 from .rol import Rol
 from .usuario import Usuario
+from .usuario_empresa import UsuarioEmpresa
 from .usuario_rol import UsuarioRol
 from .auditoria import Auditoria
 from .parametro_nomina import ParametroNomina
@@ -30,6 +31,7 @@ __all__ = [
     "Empresa",
     "Rol",
     "Usuario",
+    "UsuarioEmpresa",
     "UsuarioRol",
     "Auditoria",
     "ParametroNomina",

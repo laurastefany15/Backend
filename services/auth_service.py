@@ -9,6 +9,7 @@ from werkzeug.security import check_password_hash, generate_password_hash
 
 from extensions import db
 from models import Rol, Usuario, UsuarioRol
+from services.acceso_service import tiene_rol
 
 
 class AuthValidationError(ValueError):
@@ -53,6 +54,17 @@ def _get_jwt_secret():
     return secret
 
 
+def assign_role(user, codigo):
+    rol = Rol.query.filter_by(codigo=codigo).first()
+    if rol is None:
+        raise RuntimeError(
+            f"El rol {codigo} no está disponible. Ejecuta las migraciones."
+        )
+    exists = UsuarioRol.query.filter_by(usuario_id=user.id, rol_id=rol.id).first()
+    if exists is None:
+        db.session.add(UsuarioRol(usuario_id=user.id, rol_id=rol.id))
+
+
 def register_user(correo, password):
     correo = _normalize_email(correo)
     if not isinstance(password, str) or not 8 <= len(password) <= 128:
@@ -65,12 +77,37 @@ def register_user(correo, password):
     user = Usuario(correo=correo, hash_password=generate_password_hash(password))
     db.session.add(user)
     try:
+        db.session.flush()
+        assign_role(user, "ADMIN")
         db.session.commit()
     except IntegrityError:
         db.session.rollback()
         if _find_user_by_email(correo) is not None:
             raise EmailAlreadyRegisteredError("El correo ya está registrado.")
         raise
+    except Exception:
+        db.session.rollback()
+        raise
+    return user
+
+
+def ensure_superuser_account(correo, password):
+    correo = _normalize_email(correo)
+    if not isinstance(password, str) or not 8 <= len(password) <= 128:
+        raise AuthValidationError(
+            "La contraseña debe tener entre 8 y 128 caracteres."
+        )
+    user = _find_user_by_email(correo)
+    if user is None:
+        user = Usuario(
+            correo=correo,
+            hash_password=generate_password_hash(password),
+            activo=True,
+        )
+        db.session.add(user)
+        db.session.flush()
+    assign_role(user, "SUPERUSER")
+    db.session.commit()
     return user
 
 
@@ -134,20 +171,19 @@ def jwt_required(view_func: Callable):
     return wrapped
 
 
-def admin_required(view_func: Callable):
-    @wraps(view_func)
-    def wrapped(*args, current_user, **kwargs):
-        is_admin = (
-            UsuarioRol.query.join(Rol, Rol.id == UsuarioRol.rol_id)
-            .filter(
-                UsuarioRol.usuario_id == current_user.id,
-                Rol.codigo == "ADMIN",
-            )
-            .first()
-            is not None
-        )
-        if not is_admin:
-            return jsonify({"error": "Se requiere el rol ADMIN."}), 403
-        return view_func(*args, **kwargs)
+def role_required(*codigos):
+    def decorator(view_func: Callable):
+        @wraps(view_func)
+        def wrapped(*args, current_user, **kwargs):
+            if not tiene_rol(current_user, *codigos):
+                lista = " o ".join(codigos)
+                return jsonify({"error": f"Se requiere el rol {lista}."}), 403
+            return view_func(*args, current_user=current_user, **kwargs)
 
-    return wrapped
+        return wrapped
+
+    return decorator
+
+
+def admin_required(view_func: Callable):
+    return role_required("ADMIN")(view_func)

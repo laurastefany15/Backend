@@ -16,6 +16,7 @@ from models import (
     HoraExtra,
     Licencia,
     Usuario,
+    UsuarioEmpresa,
 )
 from services.auth_service import create_access_token
 from services.nomina_service import day_weight, quincena_bounds
@@ -49,7 +50,6 @@ class NominaTest(unittest.TestCase):
             correo=f"nomina.{suffix}@nomina.local",
             hash_password=generate_password_hash("clave-segura-1"),
             activo=True,
-            empresa_id=self.empresa.id,
         )
         self.empleado = Empleado(
             empresa_id=self.empresa.id,
@@ -69,6 +69,9 @@ class NominaTest(unittest.TestCase):
         )
         db.session.add_all([self.usuario, self.empleado, self.empleado2])
         db.session.flush()
+        db.session.add(
+            UsuarioEmpresa(usuario_id=self.usuario.id, empresa_id=self.empresa.id)
+        )
         self.contrato = Contrato(
             empleado_id=self.empleado.id,
             tipo_contrato="INDEFINIDO",
@@ -120,6 +123,7 @@ class NominaTest(unittest.TestCase):
                 f"DELETE FROM incapacidades WHERE contrato_id IN {contratos}",
                 f"DELETE FROM contratos WHERE id IN {contratos}",
                 "DELETE FROM empleados WHERE id IN (:e1, :e2)",
+                "DELETE FROM usuarios_empresas WHERE usuario_id = :usuario_id",
                 "DELETE FROM usuarios WHERE id = :usuario_id",
                 "DELETE FROM empresas WHERE id = :empresa_id",
             ]
@@ -353,9 +357,10 @@ class NominaTest(unittest.TestCase):
             correo=f"ajeno.nom.{secrets.token_hex(4)}@nomina.local",
             hash_password=generate_password_hash("clave-segura-1"),
             activo=True,
-            empresa_id=otra.id,
         )
         db.session.add(ajeno)
+        db.session.flush()
+        db.session.add(UsuarioEmpresa(usuario_id=ajeno.id, empresa_id=otra.id))
         db.session.commit()
         try:
             headers = {"Authorization": f"Bearer {create_access_token(ajeno)}"}
@@ -368,6 +373,10 @@ class NominaTest(unittest.TestCase):
             )
             self.assertEqual(ajena.status_code, 404, ajena.get_json())
         finally:
+            db.session.execute(
+                text("DELETE FROM usuarios_empresas WHERE usuario_id = :id"),
+                {"id": ajeno.id},
+            )
             db.session.execute(text("DELETE FROM usuarios WHERE id = :id"), {"id": ajeno.id})
             db.session.execute(text("DELETE FROM empresas WHERE id = :id"), {"id": otra.id})
             db.session.commit()
