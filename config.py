@@ -2,7 +2,7 @@
 config.py - Configuración por entornos (development, testing, production).
 Entradas: APP_ENV (entorno), DATABASE_URL (opcional, URI de la base de datos).
 Esperado: falla al arrancar si la configuración de producción es insegura.
-Cambios: 2026-11-10 | Stiven B | creación (paso 1)
+Cambios: 2026-11-10 | Stiven B | creación de la configuración por entornos
 """
 import os
 import tempfile

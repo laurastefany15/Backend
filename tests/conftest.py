@@ -2,7 +2,7 @@
 conftest.py - Preparación compartida de pytest (entorno y base de datos de pruebas).
 Entradas: ninguna; pytest lo carga automáticamente antes de los tests.
 Esperado: los tests usan SQLite en memoria con el esquema de las migraciones; nunca tocan instance/nomina.sqlite3.
-Cambios: 2026-11-10 | Stiven B | creación (paso 1)
+Cambios: 2026-11-10 | Stiven B | creación de la base de datos de pruebas en memoria
 """
 import os
 from pathlib import Path
