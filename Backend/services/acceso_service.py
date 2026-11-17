@@ -53,6 +53,7 @@ def perfil_publico(user, solo_activas=False):
     return {
         "id": user.id,
         "correo": user.correo,
+        "correo_verificado": user.correo_verificado,
         "activo": user.activo,
         "roles": sorted(codigos_rol(user)),
         "empresas": [

@@ -1,0 +1,10 @@
+venv/
+.venv/
+__pycache__/
+*.py[cod]
+.env
+instance/*.sqlite3
+instance/uploads/
+.git-metadata-fragments/
+
+.git-leftover/
