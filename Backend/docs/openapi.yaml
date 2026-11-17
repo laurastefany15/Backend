@@ -43,7 +43,7 @@ paths:
     post:
       tags: [Autenticación]
       summary: Registrar administrador
-      description: Crea un administrador de empresa con el rol ADMIN. La contraseña se almacena como hash.
+      description: Crea un administrador de empresa con el rol ADMIN y envía un enlace de verificación. La cuenta debe verificarse antes de iniciar sesión.
       requestBody:
         required: true
         content:
@@ -64,7 +64,7 @@ paths:
                 properties:
                   message:
                     type: string
-                    example: Usuario registrado correctamente.
+                    example: Cuenta creada. Revisa tu correo para completar la verificación.
                   user:
                     $ref: "#/components/schemas/Usuario"
         "400":
@@ -79,11 +79,17 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
+        "503":
+          description: La cuenta fue creada, pero no se pudo enviar el correo de verificación.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
   /auth/login:
     post:
       tags: [Autenticación]
       summary: Iniciar sesión
-      description: Devuelve un JWT de acceso con vigencia de una hora.
+      description: Devuelve un JWT de acceso con vigencia de una hora si el correo ya fue verificado.
       requestBody:
         required: true
         content:
@@ -108,6 +114,57 @@ paths:
                 $ref: "#/components/schemas/Error"
         "401":
           description: Credenciales inválidas o cuenta inactiva.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: El correo aún no está verificado.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+  /auth/verify-email:
+    get:
+      tags: [Autenticación]
+      summary: Verificar correo
+      description: Consume el enlace de un solo uso enviado al correo. El enlace vence en 30 minutos.
+      parameters:
+        - name: token
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Correo verificado.
+        "400":
+          description: Token ausente, inválido o vencido.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+  /auth/resend-verification:
+    post:
+      tags: [Autenticación]
+      summary: Reenviar verificación de correo
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [correo]
+              properties:
+                correo:
+                  type: string
+                  format: email
+                  maxLength: 150
+      responses:
+        "200":
+          description: Respuesta genérica para evitar revelar si la cuenta existe.
+        "400":
+          description: JSON inválido o correo no válido.
           content:
             application/json:
               schema:
@@ -3359,7 +3416,7 @@ components:
           maxLength: 128
     Usuario:
       type: object
-      required: [id, correo]
+      required: [id, correo, correo_verificado]
       properties:
         id:
           type: integer
@@ -3368,6 +3425,9 @@ components:
           type: string
           format: email
           example: admin@example.com
+        correo_verificado:
+          type: boolean
+          description: Indica si el usuario completó la verificación del correo.
         activo:
           type: boolean
         roles:

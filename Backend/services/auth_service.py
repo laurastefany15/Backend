@@ -1,6 +1,12 @@
+import hashlib
+import secrets
+import smtplib
+import ssl
 from datetime import datetime, timedelta, timezone
+from email.message import EmailMessage
 from functools import wraps
 from typing import Callable
+from urllib.parse import urlencode
 
 import jwt
 from flask import current_app, jsonify, request
@@ -17,6 +23,14 @@ class AuthValidationError(ValueError):
 
 
 class EmailAlreadyRegisteredError(ValueError):
+    pass
+
+
+class EmailNotVerifiedError(ValueError):
+    pass
+
+
+class EmailDeliveryError(RuntimeError):
     pass
 
 
@@ -65,6 +79,55 @@ def assign_role(user, codigo):
         db.session.add(UsuarioRol(usuario_id=user.id, rol_id=rol.id))
 
 
+def _new_verification_token(user):
+    token = secrets.token_urlsafe(32)
+    user.token_verificacion_hash = hashlib.sha256(token.encode("utf-8")).hexdigest()
+    ttl_minutes = int(current_app.config["EMAIL_VERIFICATION_TOKEN_TTL_MINUTES"])
+    user.token_verificacion_expira_en = datetime.now(timezone.utc) + timedelta(
+        minutes=ttl_minutes
+    )
+    return token
+
+
+def _send_verification_email(user, token):
+    config = current_app.config
+    host = config.get("SMTP_HOST")
+    sender = config.get("SMTP_FROM") or config.get("SMTP_USERNAME")
+    username = config.get("SMTP_USERNAME")
+    password = config.get("SMTP_PASSWORD")
+    use_tls = config.get("SMTP_USE_TLS", True)
+    if (
+        not host
+        or not sender
+        or bool(username) != bool(password)
+        or (username and not use_tls)
+    ):
+        raise EmailDeliveryError("La configuración SMTP está incompleta.")
+
+    query = urlencode({"token": token})
+    link = f"{config['EMAIL_VERIFICATION_BASE_URL']}/auth/verify-email?{query}"
+    message = EmailMessage()
+    message["Subject"] = "Verifica tu correo"
+    message["From"] = sender
+    message["To"] = user.correo
+    message.set_content(
+        "Para verificar tu correo, abre este enlace:\n\n"
+        f"{link}\n\n"
+        "El enlace vence en "
+        f"{config['EMAIL_VERIFICATION_TOKEN_TTL_MINUTES']} minutos."
+    )
+
+    try:
+        with smtplib.SMTP(host, int(config["SMTP_PORT"]), timeout=15) as server:
+            if use_tls:
+                server.starttls(context=ssl.create_default_context())
+            if username:
+                server.login(username, password)
+            server.send_message(message)
+    except (OSError, smtplib.SMTPException, ValueError) as error:
+        raise EmailDeliveryError("No se pudo entregar el correo.") from error
+
+
 def register_user(correo, password):
     correo = _normalize_email(correo)
     if not isinstance(password, str) or not 8 <= len(password) <= 128:
@@ -74,11 +137,16 @@ def register_user(correo, password):
     if _find_user_by_email(correo) is not None:
         raise EmailAlreadyRegisteredError("El correo ya está registrado.")
 
-    user = Usuario(correo=correo, hash_password=generate_password_hash(password))
+    user = Usuario(
+        correo=correo,
+        hash_password=generate_password_hash(password),
+        correo_verificado=False,
+    )
     db.session.add(user)
     try:
         db.session.flush()
         assign_role(user, "ADMIN")
+        token = _new_verification_token(user)
         db.session.commit()
     except IntegrityError:
         db.session.rollback()
@@ -88,7 +156,40 @@ def register_user(correo, password):
     except Exception:
         db.session.rollback()
         raise
+    _send_verification_email(user, token)
     return user
+
+
+def resend_verification_email(correo):
+    correo = _normalize_email(correo)
+    user = _find_user_by_email(correo)
+    if user is None or user.correo_verificado:
+        return
+
+    token = _new_verification_token(user)
+    db.session.commit()
+    _send_verification_email(user, token)
+
+
+def verify_email_token(token):
+    if not isinstance(token, str) or not token or len(token) > 128:
+        return False
+    token_hash = hashlib.sha256(token.encode("utf-8")).hexdigest()
+    user = Usuario.query.filter_by(token_verificacion_hash=token_hash).first()
+    if user is None or user.token_verificacion_expira_en is None:
+        return False
+
+    expires_at = user.token_verificacion_expira_en
+    if expires_at.tzinfo is None:
+        expires_at = expires_at.replace(tzinfo=timezone.utc)
+    if expires_at <= datetime.now(timezone.utc):
+        return False
+
+    user.correo_verificado = True
+    user.token_verificacion_hash = None
+    user.token_verificacion_expira_en = None
+    db.session.commit()
+    return True
 
 
 def ensure_superuser_account(correo, password):
@@ -127,6 +228,8 @@ def authenticate_user(correo, password):
         or not check_password_hash(user.hash_password, password)
     ):
         return None, None
+    if not user.correo_verificado:
+        raise EmailNotVerifiedError("El correo no está verificado.")
 
     return user, create_access_token(user)
 

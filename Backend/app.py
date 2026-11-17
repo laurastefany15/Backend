@@ -31,6 +31,17 @@ def create_app(test_config=None):
         SQLALCHEMY_TRACK_MODIFICATIONS=False,
         JWT_SECRET_KEY=os.environ.get("JWT_SECRET_KEY"),
         JWT_ACCESS_TOKEN_EXPIRES=3600,
+        SMTP_HOST=os.environ.get("SMTP_HOST"),
+        SMTP_PORT=os.environ.get("SMTP_PORT", "587"),
+        SMTP_USERNAME=os.environ.get("SMTP_USERNAME"),
+        SMTP_PASSWORD=os.environ.get("SMTP_PASSWORD"),
+        SMTP_FROM=os.environ.get("SMTP_FROM"),
+        SMTP_USE_TLS=os.environ.get("SMTP_USE_TLS", "true").strip().lower()
+        in {"1", "true", "yes"},
+        EMAIL_VERIFICATION_BASE_URL=os.environ.get(
+            "EMAIL_VERIFICATION_BASE_URL", "http://localhost:5000"
+        ).rstrip("/"),
+        EMAIL_VERIFICATION_TOKEN_TTL_MINUTES=30,
         UPLOAD_FOLDER=os.path.join(app.instance_path, "uploads"),
         MAX_DOCUMENT_BYTES=10 * 1024 * 1024,
         MAX_CONTENT_LENGTH=50 * 1024 * 1024,
